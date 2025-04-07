@@ -42,14 +42,15 @@ const FileUpload: React.FC<FileUploadProps> = ({ onAudioUpload, onSrtUpload }) =
   };
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4 justify-center w-full mb-6">
-      <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col sm:flex-row gap-2 justify-center w-full mb-3">
+      <div className="flex flex-col items-center gap-1">
         <Button 
           variant="outline" 
           className="w-full relative overflow-hidden"
           onClick={() => document.getElementById('audio-upload')?.click()}
+          size="sm"
         >
-          <FileAudio className="mr-2 h-4 w-4" />
+          <FileAudio className="mr-2 h-3 w-3" />
           {audioFile ? 'Change Audio' : 'Upload Audio'}
           <input
             id="audio-upload"
@@ -59,16 +60,17 @@ const FileUpload: React.FC<FileUploadProps> = ({ onAudioUpload, onSrtUpload }) =
             className="hidden"
           />
         </Button>
-        {audioFile && <p className="text-sm text-muted-foreground truncate max-w-[200px]">{audioFile.name}</p>}
+        {audioFile && <p className="text-xs text-muted-foreground truncate max-w-[150px]">{audioFile.name}</p>}
       </div>
 
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-1">
         <Button 
           variant="outline" 
           className="w-full relative overflow-hidden"
           onClick={() => document.getElementById('srt-upload')?.click()}
+          size="sm"
         >
-          <FileText className="mr-2 h-4 w-4" />
+          <FileText className="mr-2 h-3 w-3" />
           {srtFile ? 'Change SRT' : 'Upload SRT'}
           <input
             id="srt-upload"
@@ -78,7 +80,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onAudioUpload, onSrtUpload }) =
             className="hidden"
           />
         </Button>
-        {srtFile && <p className="text-sm text-muted-foreground truncate max-w-[200px]">{srtFile.name}</p>}
+        {srtFile && <p className="text-xs text-muted-foreground truncate max-w-[150px]">{srtFile.name}</p>}
       </div>
     </div>
   );

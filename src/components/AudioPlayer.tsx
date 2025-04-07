@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import FileUpload from './FileUpload';
@@ -179,6 +178,35 @@ const AudioPlayer: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const savedVolume = localStorage.getItem('audioPlayer_volume');
+    const savedPlaybackRate = localStorage.getItem('audioPlayer_playbackRate');
+    
+    if (savedVolume) {
+      const parsedVolume = parseFloat(savedVolume);
+      setVolume(parsedVolume);
+      if (audioRef.current) {
+        audioRef.current.volume = parsedVolume;
+      }
+    }
+    
+    if (savedPlaybackRate) {
+      const parsedRate = parseFloat(savedPlaybackRate);
+      setPlaybackRate(parsedRate);
+      if (audioRef.current) {
+        audioRef.current.playbackRate = parsedRate;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('audioPlayer_volume', volume.toString());
+  }, [volume]);
+  
+  useEffect(() => {
+    localStorage.setItem('audioPlayer_playbackRate', playbackRate.toString());
+  }, [playbackRate]);
+
   return (
     <div className="audio-player-container">
       <audio
@@ -191,7 +219,7 @@ const AudioPlayer: React.FC = () => {
         hidden
       />
       
-      <h1 className="text-2xl font-bold text-center mb-4">
+      <h1 className="text-lg md:text-xl font-bold text-center mb-2">
         AudioScribe Sync Play
       </h1>
       

@@ -52,28 +52,29 @@ const AudioControls: React.FC<AudioControlsProps> = ({
   };
 
   return (
-    <div className="flex flex-col p-4 border rounded-md shadow-sm bg-white">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-col p-2 border rounded-md shadow-sm bg-white text-sm">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1">
           <Button
             size="icon"
             variant="ghost"
             onClick={onSkipBack}
             title="Skip back 5 seconds"
+            className="h-7 w-7"
           >
-            <SkipBack className="h-5 w-5" />
+            <SkipBack className="h-4 w-4" />
           </Button>
 
           <Button
             size="icon"
             variant="default"
             onClick={onPlayPause}
-            className="h-10 w-10 rounded-full"
+            className="h-8 w-8 rounded-full"
           >
             {isPlaying ? (
-              <Pause className="h-5 w-5" />
+              <Pause className="h-4 w-4" />
             ) : (
-              <Play className="h-5 w-5 ml-0.5" />
+              <Play className="h-4 w-4 ml-0.5" />
             )}
           </Button>
 
@@ -82,16 +83,17 @@ const AudioControls: React.FC<AudioControlsProps> = ({
             variant="ghost"
             onClick={onSkipForward}
             title="Skip forward 5 seconds"
+            className="h-7 w-7"
           >
-            <SkipForward className="h-5 w-5" />
+            <SkipForward className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             variant="outline"
             size="sm"
-            className={playbackRate === 0.75 ? "bg-secondary" : ""}
+            className={`text-xs px-1.5 py-0.5 h-6 ${playbackRate === 0.75 ? "bg-secondary" : ""}`}
             onClick={() => onRateChange(0.75)}
           >
             0.75x
@@ -99,15 +101,15 @@ const AudioControls: React.FC<AudioControlsProps> = ({
           <Button
             variant="outline"
             size="sm"
-            className={playbackRate === 1 ? "bg-secondary" : ""}
+            className={`text-xs px-1.5 py-0.5 h-6 ${playbackRate === 1 ? "bg-secondary" : ""}`}
             onClick={() => onRateChange(1)}
           >
-            Normal
+            1x
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className={playbackRate === 1.5 ? "bg-secondary" : ""}
+            className={`text-xs px-1.5 py-0.5 h-6 ${playbackRate === 1.5 ? "bg-secondary" : ""}`}
             onClick={() => onRateChange(1.5)}
           >
             1.5x
@@ -115,9 +117,9 @@ const AudioControls: React.FC<AudioControlsProps> = ({
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm w-10 text-right">
+          <span className="text-xs w-8 text-right">
             {formatTime(currentTime)}
           </span>
           <Slider
@@ -127,7 +129,7 @@ const AudioControls: React.FC<AudioControlsProps> = ({
             onValueChange={handleProgressChange}
             className="flex-1"
           />
-          <span className="text-sm w-10">
+          <span className="text-xs w-8">
             {formatTime(duration)}
           </span>
         </div>
@@ -137,12 +139,12 @@ const AudioControls: React.FC<AudioControlsProps> = ({
             size="icon" 
             variant="ghost" 
             onClick={onToggleMute} 
-            className="h-8 w-8"
+            className="h-6 w-6"
           >
             {isMuted ? (
-              <VolumeX className="h-4 w-4" />
+              <VolumeX className="h-3 w-3" />
             ) : (
-              <Volume2 className="h-4 w-4" />
+              <Volume2 className="h-3 w-3" />
             )}
           </Button>
           <Slider
@@ -150,7 +152,7 @@ const AudioControls: React.FC<AudioControlsProps> = ({
             max={1}
             step={0.01}
             onValueChange={handleVolumeChange}
-            className="w-32"
+            className="w-24"
           />
         </div>
       </div>
