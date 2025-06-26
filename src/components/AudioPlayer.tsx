@@ -1,4 +1,3 @@
-
 import React from 'react';
 import FileUpload from './FileUpload';
 import AudioControls from './AudioControls';
@@ -54,6 +53,12 @@ const AudioPlayer: React.FC = () => {
         onSrtUpload={handleSrtUpload}
       />
       
+      <TranscriptDisplay
+        segments={segments}
+        currentSegment={currentSegment}
+        onSegmentClick={handleSegmentClick}
+      />
+      
       {audioSrc && (
         <AudioControls
           isPlaying={isPlaying}
@@ -71,12 +76,6 @@ const AudioPlayer: React.FC = () => {
           isMuted={isMuted}
         />
       )}
-      
-      <TranscriptDisplay
-        segments={segments}
-        currentSegment={currentSegment}
-        onSegmentClick={handleSegmentClick}
-      />
     </div>
   );
 };

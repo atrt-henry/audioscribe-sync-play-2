@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -6,9 +5,7 @@ import {
   Play, 
   Pause, 
   SkipBack, 
-  SkipForward, 
-  Volume2, 
-  VolumeX 
+  SkipForward
 } from 'lucide-react';
 import { formatTime } from '@/utils/srtParser';
 
@@ -32,23 +29,15 @@ const AudioControls: React.FC<AudioControlsProps> = ({
   isPlaying,
   duration,
   currentTime,
-  volume,
   playbackRate,
   onPlayPause,
   onSkipBack,
   onSkipForward,
   onSeek,
-  onVolumeChange,
-  onToggleMute,
-  onRateChange,
-  isMuted
+  onRateChange
 }) => {
   const handleProgressChange = (values: number[]) => {
     onSeek(values[0]);
-  };
-
-  const handleVolumeChange = (values: number[]) => {
-    onVolumeChange(values[0]);
   };
 
   return (
@@ -117,44 +106,20 @@ const AudioControls: React.FC<AudioControlsProps> = ({
         </div>
       </div>
 
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs w-8 text-right">
-            {formatTime(currentTime)}
-          </span>
-          <Slider
-            value={[currentTime]}
-            max={duration || 100}
-            step={0.01}
-            onValueChange={handleProgressChange}
-            className="flex-1"
-          />
-          <span className="text-xs w-8">
-            {formatTime(duration)}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button 
-            size="icon" 
-            variant="ghost" 
-            onClick={onToggleMute} 
-            className="h-6 w-6"
-          >
-            {isMuted ? (
-              <VolumeX className="h-3 w-3" />
-            ) : (
-              <Volume2 className="h-3 w-3" />
-            )}
-          </Button>
-          <Slider
-            value={[isMuted ? 0 : volume]}
-            max={1}
-            step={0.01}
-            onValueChange={handleVolumeChange}
-            className="w-24"
-          />
-        </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs w-8 text-right">
+          {formatTime(currentTime)}
+        </span>
+        <Slider
+          value={[currentTime]}
+          max={duration || 100}
+          step={0.01}
+          onValueChange={handleProgressChange}
+          className="flex-1"
+        />
+        <span className="text-xs w-8">
+          {formatTime(duration)}
+        </span>
       </div>
     </div>
   );
