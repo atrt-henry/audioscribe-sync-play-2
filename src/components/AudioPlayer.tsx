@@ -44,10 +44,6 @@ const AudioPlayer: React.FC = () => {
         onEnded={handleEnded}
       />
       
-      <h1 className="text-lg md:text-xl font-bold text-center mb-2">
-        AudioScribe Sync Play
-      </h1>
-      
       <FileUpload
         onAudioUpload={handleAudioUpload}
         onSrtUpload={handleSrtUpload}

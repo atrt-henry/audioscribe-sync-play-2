@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import AudioPlayer from '@/components/AudioPlayer';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
@@ -34,6 +33,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex flex-col p-4 sm:p-6 md:p-8 bg-gray-50">
+      {/* AudioScribe title positioned at top left */}
+      <h1 className="text-lg md:text-xl font-bold mb-4 text-left">
+        AudioScribe
+      </h1>
+      
       {/* For extension popup mode */}
       {!isPopout && (
         <div className="max-w-4xl w-full mx-auto">
