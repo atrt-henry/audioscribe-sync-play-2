@@ -32,12 +32,16 @@ const MultiAudioManager: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadSection, setShowUploadSection] = useState(true);
 
-  // Auto-hide upload section when files are loaded
+  // Auto-hide upload section when files are loaded (but don't force it)
   useEffect(() => {
     if (audioFiles.length > 0 && showUploadSection) {
-      setShowUploadSection(false);
+      // Only auto-hide on first file upload, not when manually toggled
+      const timer = setTimeout(() => {
+        setShowUploadSection(false);
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-  }, [audioFiles.length, showUploadSection]);
+  }, [audioFiles.length]);
 
   const validateFile = (file: File): string | null => {
     if (file.size > MAX_FILE_SIZE) {
@@ -273,6 +277,10 @@ const MultiAudioManager: React.FC = () => {
 
   const totalDuration = audioFiles.reduce((sum, file) => sum + file.duration, 0);
 
+  const toggleUploadSection = () => {
+    setShowUploadSection(prev => !prev);
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto p-4 space-y-6">
       {/* Header */}
@@ -301,27 +309,29 @@ const MultiAudioManager: React.FC = () => {
                 <Trash2 className="h-4 w-4" />
                 Delete Playlist
               </Button>
-              
-              {/* Add/Hide Upload Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowUploadSection(!showUploadSection)}
-                className="flex items-center gap-2"
-              >
-                {showUploadSection ? (
-                  <>
-                    <X className="h-4 w-4" />
-                    Hide Upload
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4" />
-                    Add New Files
-                  </>
-                )}
-              </Button>
             </>
+          )}
+          
+          {/* Add/Hide Upload Button - Always show when there are files */}
+          {audioFiles.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleUploadSection}
+              className="flex items-center gap-2"
+            >
+              {showUploadSection ? (
+                <>
+                  <X className="h-4 w-4" />
+                  Hide Upload
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Add New Files
+                </>
+              )}
+            </Button>
           )}
           
           {audioFiles.length > 0 && (
@@ -345,8 +355,14 @@ const MultiAudioManager: React.FC = () => {
         </div>
       </div>
 
-      {/* Upload Zone - Conditionally visible */}
-      {showUploadSection && (
+      {/* Upload Zone - Always render but conditionally show */}
+      <div 
+        className={`transition-all duration-300 ease-in-out ${
+          showUploadSection 
+            ? 'opacity-100 max-h-[500px] transform translate-y-0' 
+            : 'opacity-0 max-h-0 transform -translate-y-4 overflow-hidden'
+        }`}
+      >
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -368,7 +384,7 @@ const MultiAudioManager: React.FC = () => {
             </Alert>
           </CardContent>
         </Card>
-      )}
+      </div>
 
       {/* Upload Progress */}
       {uploadProgress.length > 0 && (
