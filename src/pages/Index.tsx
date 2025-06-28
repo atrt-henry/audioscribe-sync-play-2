@@ -1,15 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import AudioPlayer from '@/components/AudioPlayer';
+import MultiAudioManager from '@/components/MultiAudioManager';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Rnd } from 'react-rnd';
-
-const MIN_WIDTH = 400;
-const MIN_HEIGHT = 500;
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Music, Library } from 'lucide-react';
 
 const Index = () => {
-  const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [isPopout, setIsPopout] = useState(false);
 
   // Determine if we're running as a popup or within the extension
@@ -19,7 +16,7 @@ const Index = () => {
   }, []);
 
   const handlePopout = () => {
-    const width = 600;
+    const width = 1200;
     const height = 800;
     const left = window.screen.width / 2 - width / 2;
     const top = window.screen.height / 2 - height / 2;
@@ -32,23 +29,25 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col p-4 sm:p-6 md:p-8 bg-gray-50">
-      {/* AudioScribe title positioned at top left */}
-      <h1 className="text-lg md:text-xl font-bold mb-4 text-left">
-        AudioScribe
-      </h1>
-      
-      {/* For extension popup mode */}
-      {!isPopout && (
-        <div className="max-w-4xl w-full mx-auto">
-          <div className="flex justify-end mb-2">
-            <button
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Music className="h-6 w-6 text-primary" />
+            <h1 className="text-xl font-bold">AudioScribe</h1>
+          </div>
+          
+          {!isPopout && (
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handlePopout}
-              className="text-sm text-gray-500 hover:text-gray-700 flex items-center"
+              className="flex items-center gap-2"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4 mr-1"
+                className="h-4 w-4"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -61,29 +60,25 @@ const Index = () => {
                 />
               </svg>
               Pop Out
-            </button>
-          </div>
+            </Button>
+          )}
+        </div>
+      </div>
 
-          <ScrollArea className="h-[600px] rounded-md border">
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden">
+        {!isPopout ? (
+          <ScrollArea className="h-[calc(100vh-73px)]">
             <div className="p-4">
-              <AudioPlayer />
+              <MultiAudioManager />
             </div>
           </ScrollArea>
-        </div>
-      )}
-
-      {/* For popped out window */}
-      {isPopout && (
-        <div className="w-full h-full">
-          <ResizablePanelGroup direction="vertical">
-            <ResizablePanel defaultSize={100}>
-              <div className="h-full p-4">
-                <AudioPlayer />
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </div>
-      )}
+        ) : (
+          <div className="h-full p-4">
+            <MultiAudioManager />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -146,4 +145,114 @@
 
 .drag-handle {
   @apply cursor-move p-2 bg-gray-100 flex items-center justify-between rounded-t-md;
+}
+
+/* Waveform styles */
+.waveform-container {
+  @apply relative bg-muted/20 rounded border;
+}
+
+.waveform-bar {
+  @apply transition-colors duration-150;
+}
+
+.waveform-progress {
+  @apply absolute top-0 left-0 h-full bg-primary/20 pointer-events-none;
+}
+
+/* Search highlight styles */
+mark {
+  @apply bg-yellow-200 dark:bg-yellow-800 px-1 rounded;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-muted/20 rounded;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 rounded hover:bg-muted-foreground/50;
+}
+
+/* Animation for upload progress */
+@keyframes pulse-upload {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.upload-pulse {
+  animation: pulse-upload 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Responsive grid adjustments */
+@media (max-width: 768px) {
+  .audio-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .audio-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1025px) {
+  .audio-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Drag and drop styles */
+.drag-over {
+  @apply border-primary bg-primary/5;
+}
+
+.drag-active {
+  @apply scale-105 transition-transform duration-200;
+}
+
+/* Loading states */
+.loading-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Error states */
+.error-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* Success states */
+.success-bounce {
+  animation: bounce 0.6s ease-in-out;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
