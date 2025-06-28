@@ -14,11 +14,15 @@ import {
   List,
   Plus,
   X,
-  Trash2
+  Trash2,
+  Settings,
+  Sparkles,
+  Info
 } from 'lucide-react';
 import { toast } from 'sonner';
 import FileDropZone from './FileDropZone';
 import AudioPlayerCard from './AudioPlayerCard';
+import AITranscriptionService from '@/services/AITranscriptionService';
 import { AudioFile, UploadProgress } from '@/types/audio';
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -31,6 +35,37 @@ const MultiAudioManager: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadSection, setShowUploadSection] = useState(true);
+  const [aiConfigStatus, setAiConfigStatus] = useState<{ configured: boolean; message: string }>({ 
+    configured: false, 
+    message: 'Checking AI configuration...' 
+  });
+
+  // Check AI configuration status
+  useEffect(() => {
+    const checkAIConfig = () => {
+      const status = AITranscriptionService.getConfigurationStatus();
+      setAiConfigStatus(status);
+    };
+
+    checkAIConfig();
+    
+    // Listen for settings changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'audioscribe_settings') {
+        checkAIConfig();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check periodically in case settings change in the same tab
+    const interval = setInterval(checkAIConfig, 5000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Auto-hide upload section when files are loaded (but don't force it)
   useEffect(() => {
@@ -267,6 +302,46 @@ const MultiAudioManager: React.FC = () => {
     );
   }, []);
 
+  const handleBulkTranscribe = async () => {
+    const filesWithoutTranscripts = audioFiles.filter(file => !file.hasTranscript);
+    
+    if (filesWithoutTranscripts.length === 0) {
+      toast.info('All files already have transcripts');
+      return;
+    }
+
+    if (!aiConfigStatus.configured) {
+      toast.error('AI transcription not configured. Please check your settings.');
+      return;
+    }
+
+    toast.info(`Starting bulk transcription for ${filesWithoutTranscripts.length} files...`);
+
+    for (const audioFile of filesWithoutTranscripts) {
+      try {
+        // Convert audio URL to File object
+        const response = await fetch(audioFile.url);
+        const blob = await response.blob();
+        const file = new File([blob], audioFile.originalName, { type: blob.type });
+
+        const transcript = await AITranscriptionService.transcribeAudio(file);
+        
+        if (transcript) {
+          handleTranscriptUpdate(audioFile.id, transcript);
+          toast.success(`Transcript generated for "${audioFile.name}"`);
+        }
+      } catch (error) {
+        console.error(`Failed to transcribe ${audioFile.name}:`, error);
+        toast.error(`Failed to transcribe "${audioFile.name}"`);
+      }
+      
+      // Add a small delay between requests to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    toast.success('Bulk transcription completed!');
+  };
+
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -276,6 +351,7 @@ const MultiAudioManager: React.FC = () => {
   };
 
   const totalDuration = audioFiles.reduce((sum, file) => sum + file.duration, 0);
+  const filesWithoutTranscripts = audioFiles.filter(file => !file.hasTranscript);
 
   const toggleUploadSection = () => {
     setShowUploadSection(prev => !prev);
@@ -298,6 +374,20 @@ const MultiAudioManager: React.FC = () => {
               <Badge variant="outline">
                 {audioFiles.length} files
               </Badge>
+              
+              {/* Bulk Transcribe Button */}
+              {filesWithoutTranscripts.length > 0 && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleBulkTranscribe}
+                  disabled={!aiConfigStatus.configured}
+                  className="flex items-center gap-2"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Transcribe All ({filesWithoutTranscripts.length})
+                </Button>
+              )}
               
               {/* Delete Playlist Button */}
               <Button
@@ -355,6 +445,26 @@ const MultiAudioManager: React.FC = () => {
         </div>
       </div>
 
+      {/* AI Configuration Status */}
+      {!aiConfigStatus.configured && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>{aiConfigStatus.message}</span>
+            <Button variant="outline" size="sm" asChild>
+              <a href="#" onClick={(e) => {
+                e.preventDefault();
+                // This would trigger opening the settings dialog
+                // You might want to pass a callback to open settings
+              }}>
+                <Settings className="h-4 w-4 mr-2" />
+                Configure AI
+              </a>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Upload Zone - Always render but conditionally show */}
       <div 
         className={`transition-all duration-300 ease-in-out ${
@@ -380,6 +490,11 @@ const MultiAudioManager: React.FC = () => {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 Transcript files will be automatically linked to audio files with matching names (e.g., "audio.mp3" + "audio.srt").
+                {aiConfigStatus.configured && (
+                  <span className="block mt-1 text-green-600">
+                    ✓ AI transcription is ready: {aiConfigStatus.message}
+                  </span>
+                )}
               </AlertDescription>
             </Alert>
           </CardContent>

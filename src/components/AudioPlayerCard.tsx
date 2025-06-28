@@ -14,11 +14,15 @@ import {
   ChevronUp,
   Download,
   Edit3,
-  Search
+  Search,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AudioFile } from '@/types/audio';
 import TranscriptPanel from './TranscriptPanel';
+import AITranscriptionService from '@/services/AITranscriptionService';
+import { toast } from 'sonner';
 
 interface AudioPlayerCardProps {
   audioFile: AudioFile;
@@ -39,6 +43,7 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isGeneratingTranscript, setIsGeneratingTranscript] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
@@ -112,6 +117,37 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
     const newMuted = !isMuted;
     setIsMuted(newMuted);
     audio.muted = newMuted;
+  };
+
+  const handleGenerateTranscript = async () => {
+    if (isGeneratingTranscript) return;
+
+    try {
+      setIsGeneratingTranscript(true);
+      toast.info('Starting AI transcription...', {
+        description: 'This may take a few minutes depending on the audio length.'
+      });
+
+      // Convert audio URL to File object for the AI service
+      const response = await fetch(audioFile.url);
+      const blob = await response.blob();
+      const file = new File([blob], audioFile.originalName, { type: blob.type });
+
+      const transcript = await AITranscriptionService.transcribeAudio(file);
+      
+      if (transcript) {
+        onTranscriptUpdate(audioFile.id, transcript);
+        setShowTranscript(true);
+        toast.success('Transcript generated successfully!');
+      } else {
+        toast.error('Failed to generate transcript. Please check your AI settings.');
+      }
+    } catch (error) {
+      console.error('Transcription error:', error);
+      toast.error('Failed to generate transcript. Please try again.');
+    } finally {
+      setIsGeneratingTranscript(false);
+    }
   };
 
   const formatTime = (seconds: number): string => {
@@ -244,6 +280,30 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
             />
           </div>
         </div>
+
+        {/* AI Transcription Button */}
+        {!audioFile.hasTranscript && (
+          <div className="pt-2 border-t">
+            <Button
+              onClick={handleGenerateTranscript}
+              disabled={isGeneratingTranscript}
+              className="w-full"
+              variant="outline"
+            >
+              {isGeneratingTranscript ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating Transcript...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Generate AI Transcript
+                </>
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* Transcript Panel */}
         {showTranscript && audioFile.hasTranscript && (
