@@ -51,9 +51,9 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
     e.target.value = '';
   }, [onFilesSelected]);
 
-  const handleClick = useCallback(() => {
-    if (!disabled) {
-      fileInputRef.current?.click();
+  const triggerFileInput = useCallback(() => {
+    if (!disabled && fileInputRef.current) {
+      fileInputRef.current.click();
     }
   }, [disabled]);
 
@@ -69,11 +69,10 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      onClick={handleClick}
+      onClick={triggerFileInput}
     >
       <input
         ref={fileInputRef}
-        id="file-input"
         type="file"
         multiple
         accept=".mp3,.wav,.m4a,.ogg,.srt,.vtt"
@@ -99,10 +98,7 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
         <Button 
           variant="outline" 
           disabled={disabled}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleClick();
-          }}
+          type="button"
         >
           <Upload className="h-4 w-4 mr-2" />
           Choose Files
