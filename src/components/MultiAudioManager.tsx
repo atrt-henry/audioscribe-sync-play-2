@@ -45,6 +45,10 @@ const MultiAudioManager: React.FC = () => {
     return null;
   };
 
+  const getBaseName = (fileName: string): string => {
+    return fileName.replace(/\.[^/.]+$/, "").toLowerCase();
+  };
+
   const processFiles = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     const errors: string[] = [];
@@ -79,7 +83,10 @@ const MultiAudioManager: React.FC = () => {
       return SUPPORTED_TRANSCRIPT_FORMATS.includes(extension);
     });
 
-    // Process audio files
+    // Store newly created audio files for transcript matching
+    const newAudioFiles: AudioFile[] = [];
+
+    // Process audio files first
     for (const file of audioFiles) {
       const fileId = `${Date.now()}-${Math.random()}`;
       
@@ -127,7 +134,7 @@ const MultiAudioManager: React.FC = () => {
           hasTranscript: false
         };
 
-        setAudioFiles(prev => [...prev, newAudioFile]);
+        newAudioFiles.push(newAudioFile);
         
         setUploadProgress(prev => 
           prev.map(item => 
@@ -151,20 +158,30 @@ const MultiAudioManager: React.FC = () => {
       }
     }
 
-    // Process transcript files
+    // Add new audio files to state
+    setAudioFiles(prev => [...prev, ...newAudioFiles]);
+
+    // Process transcript files and match with both existing and new audio files
     for (const file of transcriptFiles) {
       try {
         const content = await file.text();
-        const baseName = file.name.replace(/\.[^/.]+$/, "");
+        const baseName = getBaseName(file.name);
         
-        // Try to match with existing audio file
-        const matchingAudio = audioFiles.find(audio => 
-          audio.name.toLowerCase() === baseName.toLowerCase()
-        );
+        // Get current audio files (existing + newly uploaded)
+        setAudioFiles(currentAudioFiles => {
+          const allAudioFiles = [...currentAudioFiles];
+          
+          // Try to match with any audio file (existing or newly uploaded)
+          const matchingAudio = allAudioFiles.find(audio => 
+            getBaseName(audio.originalName) === baseName ||
+            getBaseName(audio.name) === baseName
+          );
 
-        if (matchingAudio) {
-          setAudioFiles(prev => 
-            prev.map(audio => 
+          if (matchingAudio) {
+            toast.success(`Transcript linked to "${matchingAudio.name}"`);
+            
+            // Update the matching audio file with transcript
+            return allAudioFiles.map(audio => 
               audio.id === matchingAudio.id
                 ? { 
                     ...audio, 
@@ -172,12 +189,15 @@ const MultiAudioManager: React.FC = () => {
                     hasTranscript: true
                   }
                 : audio
-            )
-          );
-          toast.success(`Transcript linked to "${matchingAudio.name}"`);
-        } else {
-          toast.warning(`No matching audio file found for transcript "${file.name}"`);
-        }
+            );
+          } else {
+            // Show available audio files for debugging
+            const availableNames = allAudioFiles.map(a => `"${getBaseName(a.originalName)}"`).join(', ');
+            console.log(`No match found for transcript "${baseName}". Available audio files: ${availableNames}`);
+            toast.warning(`No matching audio file found for transcript "${file.name}". Looking for: "${baseName}"`);
+            return allAudioFiles;
+          }
+        });
       } catch (error) {
         toast.error(`Failed to process transcript "${file.name}"`);
       }
@@ -189,7 +209,7 @@ const MultiAudioManager: React.FC = () => {
       setIsUploading(false);
     }, 2000);
 
-  }, [audioFiles]);
+  }, []);
 
   const handleFileUpload = useCallback((files: FileList | File[]) => {
     processFiles(files);
@@ -298,7 +318,7 @@ const MultiAudioManager: React.FC = () => {
           <Alert className="mt-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Maximum file size: 100MB. Transcript files will be automatically linked to audio files with matching names.
+              Maximum file size: 100MB. Transcript files will be automatically linked to audio files with matching names (e.g., "audio.mp3" + "audio.srt").
             </AlertDescription>
           </Alert>
         </CardContent>
