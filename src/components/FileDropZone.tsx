@@ -51,25 +51,45 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
     e.target.value = '';
   }, [onFilesSelected]);
 
-  const triggerFileInput = useCallback(() => {
+  const triggerFileInput = useCallback((e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     if (!disabled && fileInputRef.current) {
+      console.log('Triggering file input click'); // Debug log
       fileInputRef.current.click();
     }
   }, [disabled]);
 
+  const handleDropZoneClick = useCallback((e: React.MouseEvent) => {
+    // Only trigger if clicking on the drop zone itself, not child elements
+    if (e.target === e.currentTarget) {
+      triggerFileInput(e);
+    }
+  }, [triggerFileInput]);
+
+  const handleButtonClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    triggerFileInput(e);
+  }, [triggerFileInput]);
+
   return (
     <div
       className={cn(
-        "relative border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer",
+        "relative border-2 border-dashed rounded-lg p-8 text-center transition-colors",
         isDragOver && !disabled
           ? "border-primary bg-primary/5"
           : "border-muted-foreground/25 hover:border-muted-foreground/50",
-        disabled && "opacity-50 cursor-not-allowed"
+        disabled && "opacity-50 cursor-not-allowed",
+        !disabled && "cursor-pointer"
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      onClick={triggerFileInput}
+      onClick={handleDropZoneClick}
     >
       <input
         ref={fileInputRef}
@@ -77,11 +97,12 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
         multiple
         accept=".mp3,.wav,.m4a,.ogg,.srt,.vtt"
         onChange={handleFileSelect}
-        className="hidden"
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         disabled={disabled}
+        style={{ zIndex: -1 }}
       />
 
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-4 pointer-events-none">
         <div className="flex justify-center">
           <FileAudio className="h-5 w-5 text-muted-foreground" />
         </div>
@@ -99,6 +120,8 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
           variant="outline" 
           disabled={disabled}
           type="button"
+          onClick={handleButtonClick}
+          className="pointer-events-auto"
         >
           <Upload className="h-4 w-4 mr-2" />
           Choose Files
