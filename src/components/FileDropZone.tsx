@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload, FileAudio, FileText } from 'lucide-react';
+import { Upload, FileAudio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FileDropZoneProps {
@@ -83,9 +83,8 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
       />
 
       <div className="flex flex-col items-center gap-4">
-        <div className="flex gap-1">
+        <div className="flex justify-center">
           <FileAudio className="h-5 w-5 text-muted-foreground" />
-          <FileText className="h-5 w-5 text-muted-foreground" />
         </div>
 
         <div className="space-y-2">
