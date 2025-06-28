@@ -256,3 +256,49 @@ mark {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
 }
+
+/* Settings dialog specific styles */
+.settings-dialog .dialog-content {
+  @apply max-w-4xl;
+}
+
+/* API key input styles */
+.api-key-input {
+  @apply font-mono text-sm;
+}
+
+/* Provider card styles */
+.provider-card {
+  @apply transition-all duration-200;
+}
+
+.provider-card:hover {
+  @apply shadow-md;
+}
+
+.provider-card.enabled {
+  @apply ring-2 ring-primary/20;
+}
+
+/* Model selection styles */
+.model-card {
+  @apply transition-all duration-200 cursor-pointer;
+}
+
+.model-card:hover {
+  @apply shadow-sm;
+}
+
+.model-card.selected {
+  @apply ring-2 ring-primary bg-primary/5;
+}
+
+/* Badge styles for free models */
+.free-badge {
+  @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+}
+
+/* Capability badge styles */
+.capability-badge {
+  @apply inline-flex items-center gap-1;
+}

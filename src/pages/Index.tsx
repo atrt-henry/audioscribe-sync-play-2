@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import MultiAudioManager from '@/components/MultiAudioManager';
+import ApiKeySettings from '@/components/ApiKeySettings';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Music, Library } from 'lucide-react';
+import { Music, Library, Settings } from 'lucide-react';
 
 const Index = () => {
   const [isPopout, setIsPopout] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Determine if we're running as a popup or within the extension
   useEffect(() => {
@@ -38,30 +40,43 @@ const Index = () => {
             <h1 className="text-xl font-bold">AudioScribe</h1>
           </div>
           
-          {!isPopout && (
+          <div className="flex items-center gap-2">
+            {/* Settings Button */}
             <Button
               variant="outline"
               size="sm"
-              onClick={handlePopout}
+              onClick={() => setShowSettings(true)}
               className="flex items-center gap-2"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                />
-              </svg>
-              Pop Out
+              <Settings className="h-4 w-4" />
+              Settings
             </Button>
-          )}
+
+            {!isPopout && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePopout}
+                className="flex items-center gap-2"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+                Pop Out
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -79,6 +94,12 @@ const Index = () => {
           </div>
         )}
       </div>
+
+      {/* Settings Dialog */}
+      <ApiKeySettings 
+        open={showSettings} 
+        onOpenChange={setShowSettings} 
+      />
     </div>
   );
 };
