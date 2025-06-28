@@ -258,33 +258,35 @@ const MultiAudioManager: React.FC = () => {
           </p>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">
-            {audioFiles.length} files
-          </Badge>
-          <Badge variant="outline">
-            {formatFileSize(totalSize)}
-          </Badge>
-          <div className="flex border rounded-md">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-            >
-              <List className="h-4 w-4" />
-            </Button>
+        {audioFiles.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">
+              {audioFiles.length} files
+            </Badge>
+            <Badge variant="outline">
+              {formatFileSize(totalSize)}
+            </Badge>
+            <div className="flex border rounded-md">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+              >
+                <Grid3X3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Upload Zone */}
+      {/* Upload Zone - Always visible */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -380,16 +382,9 @@ const MultiAudioManager: React.FC = () => {
               <div>
                 <h3 className="text-lg font-medium">No audio files yet</h3>
                 <p className="text-muted-foreground">
-                  Upload your first audio file to get started
+                  Use the upload area above to add your first audio file
                 </p>
               </div>
-              <Button 
-                onClick={() => document.getElementById('file-input')?.click()}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add Audio Files
-              </Button>
             </div>
           </CardContent>
         </Card>
