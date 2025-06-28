@@ -408,36 +408,6 @@ const MultiAudioManager: React.FC = () => {
           </CardContent>
         </Card>
       )}
-
-      {/* Summary */}
-      {audioFiles.length > 0 && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold">{audioFiles.length}</p>
-                <p className="text-sm text-muted-foreground">Total Files</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {audioFiles.filter(f => f.hasTranscript).length}
-                </p>
-                <p className="text-sm text-muted-foreground">With Transcripts</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{formatFileSize(totalSize)}</p>
-                <p className="text-sm text-muted-foreground">Total Size</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {Math.floor(totalDuration / 60)}m
-                </p>
-                <p className="text-sm text-muted-foreground">Total Duration</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
