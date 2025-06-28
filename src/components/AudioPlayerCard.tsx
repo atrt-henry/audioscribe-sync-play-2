@@ -19,7 +19,6 @@ import {
 import { cn } from '@/lib/utils';
 import { AudioFile } from '@/types/audio';
 import TranscriptPanel from './TranscriptPanel';
-import WaveformVisualization from './WaveformVisualization';
 
 interface AudioPlayerCardProps {
   audioFile: AudioFile;
@@ -151,8 +150,6 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
             </h3>
             <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
               <span>{formatTime(audioFile.duration)}</span>
-              <span>•</span>
-              <span>{formatFileSize(audioFile.size)}</span>
               {audioFile.hasTranscript && (
                 <>
                   <span>•</span>
@@ -193,15 +190,6 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Waveform Visualization */}
-        <WaveformVisualization
-          audioUrl={audioFile.url}
-          currentTime={currentTime}
-          duration={audioFile.duration}
-          isPlaying={isPlaying}
-          onSeek={(time) => handleSeek([time])}
-        />
-
         {/* Progress Bar */}
         <div className="space-y-2">
           <Slider

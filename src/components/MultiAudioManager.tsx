@@ -13,7 +13,8 @@ import {
   Grid3X3, 
   List,
   Plus,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import FileDropZone from './FileDropZone';
@@ -235,6 +236,23 @@ const MultiAudioManager: React.FC = () => {
     toast.success('Audio file deleted');
   }, []);
 
+  const handleDeletePlaylist = useCallback(() => {
+    if (audioFiles.length === 0) return;
+    
+    if (window.confirm(`Are you sure you want to delete all ${audioFiles.length} audio files? This action cannot be undone.`)) {
+      // Revoke all object URLs to free memory
+      audioFiles.forEach(file => {
+        if (file.url) {
+          URL.revokeObjectURL(file.url);
+        }
+      });
+      
+      setAudioFiles([]);
+      setShowUploadSection(true);
+      toast.success('All audio files deleted');
+    }
+  }, [audioFiles]);
+
   const handleTranscriptUpdate = useCallback((id: string, transcript: string) => {
     setAudioFiles(prev => 
       prev.map(file => 
@@ -253,7 +271,6 @@ const MultiAudioManager: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const totalSize = audioFiles.reduce((sum, file) => sum + file.size, 0);
   const totalDuration = audioFiles.reduce((sum, file) => sum + file.duration, 0);
 
   return (
@@ -273,9 +290,17 @@ const MultiAudioManager: React.FC = () => {
               <Badge variant="outline">
                 {audioFiles.length} files
               </Badge>
-              <Badge variant="outline">
-                {formatFileSize(totalSize)}
-              </Badge>
+              
+              {/* Delete Playlist Button */}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeletePlaylist}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Playlist
+              </Button>
               
               {/* Add/Hide Upload Button */}
               <Button
