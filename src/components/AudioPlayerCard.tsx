@@ -16,11 +16,14 @@ import {
   Edit3,
   Search,
   Sparkles,
-  Loader2
+  Loader2,
+  SkipBack,
+  SkipForward
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AudioFile } from '@/types/audio';
 import TranscriptPanel from './TranscriptPanel';
+import WaveformVisualization from './WaveformVisualization';
 import AITranscriptionService from '@/services/AITranscriptionService';
 import { toast } from 'sonner';
 
@@ -41,6 +44,7 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const [showTranscript, setShowTranscript] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGeneratingTranscript, setIsGeneratingTranscript] = useState(false);
@@ -55,15 +59,21 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
     const handleLoadedData = () => setIsLoaded(true);
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleEnded = () => setIsPlaying(false);
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
 
     audio.addEventListener('loadeddata', handleLoadedData);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
 
     return () => {
       audio.removeEventListener('loadeddata', handleLoadedData);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
     };
   }, []);
 
@@ -82,16 +92,36 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
     if (isPlaying) {
       audio.pause();
     } else {
-      audio.play();
+      audio.play().catch(error => {
+        console.error('Error playing audio:', error);
+        toast.error('Failed to play audio');
+      });
     }
-    setIsPlaying(!isPlaying);
   };
 
-  const handleSeek = (value: number[]) => {
+  const handleSeek = (value: number[] | number) => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const newTime = value[0];
+    const newTime = Array.isArray(value) ? value[0] : value;
+    audio.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
+  const handleSkipBack = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const newTime = Math.max(0, audio.currentTime - 10);
+    audio.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
+  const handleSkipForward = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const newTime = Math.min(audioFile.duration, audio.currentTime + 10);
     audio.currentTime = newTime;
     setCurrentTime(newTime);
   };
@@ -117,6 +147,14 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
     const newMuted = !isMuted;
     setIsMuted(newMuted);
     audio.muted = newMuted;
+  };
+
+  const handlePlaybackRateChange = (rate: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    setPlaybackRate(rate);
+    audio.playbackRate = rate;
   };
 
   const handleGenerateTranscript = async () => {
@@ -186,12 +224,14 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
             </h3>
             <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
               <span>{formatTime(audioFile.duration)}</span>
+              <span>•</span>
+              <span>{formatFileSize(audioFile.size)}</span>
               {audioFile.hasTranscript && (
                 <>
                   <span>•</span>
                   <Badge variant="secondary" className="text-xs">
                     <FileText className="h-3 w-3 mr-1" />
-                    Transcript
+                    Interactive
                   </Badge>
                 </>
               )}
@@ -205,6 +245,7 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
                 size="sm"
                 onClick={() => setShowTranscript(!showTranscript)}
                 className="h-8 w-8 p-0"
+                title={showTranscript ? "Hide transcript" : "Show transcript"}
               >
                 {showTranscript ? (
                   <ChevronUp className="h-4 w-4" />
@@ -218,6 +259,7 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
               size="sm"
               onClick={handleDelete}
               className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+              title="Delete audio file"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -226,6 +268,16 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Waveform Visualization */}
+        <WaveformVisualization
+          audioUrl={audioFile.url}
+          currentTime={currentTime}
+          duration={audioFile.duration}
+          isPlaying={isPlaying}
+          onSeek={(time) => handleSeek([time])}
+          className="mb-2"
+        />
+
         {/* Progress Bar */}
         <div className="space-y-2">
           <Slider
@@ -241,29 +293,69 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
           </div>
         </div>
 
-        {/* Controls */}
+        {/* Main Controls */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSkipBack}
+              disabled={!isLoaded}
+              title="Skip back 10 seconds"
+              className="h-8 w-8 p-0"
+            >
+              <SkipBack className="h-4 w-4" />
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
               onClick={handlePlayPause}
               disabled={!isLoaded}
+              className="h-10 w-10 p-0"
             >
               {isPlaying ? (
-                <Pause className="h-4 w-4" />
+                <Pause className="h-5 w-5" />
               ) : (
-                <Play className="h-4 w-4" />
+                <Play className="h-5 w-5" />
               )}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSkipForward}
+              disabled={!isLoaded}
+              title="Skip forward 10 seconds"
+              className="h-8 w-8 p-0"
+            >
+              <SkipForward className="h-4 w-4" />
             </Button>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Playback Rate */}
+            <div className="flex items-center gap-1">
+              {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
+                <Button
+                  key={rate}
+                  variant={playbackRate === rate ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => handlePlaybackRateChange(rate)}
+                  className="h-6 px-2 text-xs"
+                >
+                  {rate}x
+                </Button>
+              ))}
+            </div>
+
+            {/* Volume Control */}
             <Button
               variant="ghost"
               size="sm"
               onClick={handleMuteToggle}
               className="h-8 w-8 p-0"
+              title={isMuted ? "Unmute" : "Mute"}
             >
               {isMuted || volume === 0 ? (
                 <VolumeX className="h-4 w-4" />
@@ -293,24 +385,24 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
               {isGeneratingTranscript ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating Transcript...
+                  Generating Interactive Transcript...
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Generate AI Transcript
+                  Generate Interactive Transcript
                 </>
               )}
             </Button>
           </div>
         )}
 
-        {/* Transcript Panel */}
+        {/* Interactive Transcript Panel */}
         {showTranscript && audioFile.hasTranscript && (
           <TranscriptPanel
             transcript={audioFile.transcript || ''}
             currentTime={currentTime}
-            onSeek={(time) => handleSeek([time])}
+            onSeek={handleSeek}
             onTranscriptUpdate={(transcript) => 
               onTranscriptUpdate(audioFile.id, transcript)
             }

@@ -11,10 +11,12 @@ import {
   Download, 
   X, 
   ChevronUp, 
-  ChevronDown 
+  ChevronDown,
+  Play,
+  Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { parseSRT, findCurrentSegment, SubtitleSegment } from '@/utils/srtParser';
+import { parseSRT, findCurrentSegment, SubtitleSegment, formatTime } from '@/utils/srtParser';
 
 interface TranscriptPanelProps {
   transcript: string;
@@ -36,6 +38,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
   const [segments, setSegments] = useState<SubtitleSegment[]>([]);
   const [currentSegment, setCurrentSegment] = useState<SubtitleSegment | null>(null);
+  const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
   
   const transcriptRef = useRef<HTMLDivElement>(null);
   const activeSegmentRef = useRef<HTMLDivElement>(null);
@@ -60,12 +63,24 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   }, [segments, currentTime]);
 
   useEffect(() => {
-    // Auto-scroll to active segment
-    if (activeSegmentRef.current) {
-      activeSegmentRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
+    // Auto-scroll to active segment with smooth behavior
+    if (activeSegmentRef.current && currentSegment) {
+      const container = transcriptRef.current;
+      const element = activeSegmentRef.current;
+      
+      if (container && element) {
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        
+        // Check if element is not fully visible
+        if (elementRect.top < containerRect.top || elementRect.bottom > containerRect.bottom) {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+          });
+        }
+      }
     }
   }, [currentSegment]);
 
@@ -96,7 +111,18 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     setIsEditing(false);
   };
 
-  const handleSegmentClick = (segment: SubtitleSegment) => {
+  const handleSegmentClick = (segment: SubtitleSegment, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Provide visual feedback
+    const target = event.currentTarget as HTMLElement;
+    target.style.transform = 'scale(0.98)';
+    setTimeout(() => {
+      target.style.transform = '';
+    }, 150);
+    
+    // Seek to the segment start time
     onSeek(segment.startTime);
   };
 
@@ -126,7 +152,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     
     setCurrentSearchIndex(newIndex);
     
-    // Scroll to search result
+    // Scroll to search result and seek to that time
     const segmentIndex = searchResults[newIndex];
     const segment = segments[segmentIndex];
     if (segment) {
@@ -142,7 +168,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
 
     return parts.map((part, index) => 
       regex.test(part) ? (
-        <mark key={index} className="bg-yellow-200 dark:bg-yellow-800">
+        <mark key={index} className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">
           {part}
         </mark>
       ) : (
@@ -155,7 +181,10 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     <Card className="mt-4">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Transcript</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Interactive Transcript
+          </CardTitle>
           <div className="flex items-center gap-2">
             {segments.length > 0 && (
               <Badge variant="outline" className="text-xs">
@@ -167,6 +196,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               size="sm"
               onClick={handleDownload}
               className="h-8 w-8 p-0"
+              title="Download transcript"
             >
               <Download className="h-4 w-4" />
             </Button>
@@ -175,6 +205,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               size="sm"
               onClick={() => setIsEditing(!isEditing)}
               className="h-8 w-8 p-0"
+              title="Edit transcript"
             >
               <Edit3 className="h-4 w-4" />
             </Button>
@@ -240,47 +271,101 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
             </div>
           </div>
         ) : (
-          <div 
-            ref={transcriptRef}
-            className="max-h-[400px] overflow-y-auto space-y-2"
-          >
-            {segments.length > 0 ? (
-              segments.map((segment, index) => {
-                const isActive = currentSegment?.id === segment.id;
-                const isSearchResult = searchResults.includes(index);
-                const isCurrentSearchResult = searchResults[currentSearchIndex] === index;
-                
-                return (
-                  <div
-                    key={segment.id}
-                    ref={isActive ? activeSegmentRef : null}
-                    className={cn(
-                      "p-3 rounded-lg cursor-pointer transition-colors",
-                      isActive && "bg-primary/10 border border-primary/20",
-                      !isActive && "hover:bg-muted/50",
-                      isCurrentSearchResult && "ring-2 ring-yellow-400"
-                    )}
-                    onClick={() => handleSegmentClick(segment)}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="text-xs text-muted-foreground font-mono min-w-[80px]">
-                        {Math.floor(segment.startTime / 60)}:{(segment.startTime % 60).toFixed(1).padStart(4, '0')}
+          <div className="space-y-4">
+            {/* Instructions */}
+            <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
+              <p className="flex items-center gap-2">
+                <Play className="h-4 w-4" />
+                Click on any transcript segment to jump to that time in the audio
+              </p>
+            </div>
+
+            {/* Transcript Segments */}
+            <div 
+              ref={transcriptRef}
+              className="max-h-[400px] overflow-y-auto space-y-1 custom-scrollbar"
+            >
+              {segments.length > 0 ? (
+                segments.map((segment, index) => {
+                  const isActive = currentSegment?.id === segment.id;
+                  const isSearchResult = searchResults.includes(index);
+                  const isCurrentSearchResult = searchResults[currentSearchIndex] === index;
+                  const isHovered = hoveredSegment === index;
+                  
+                  return (
+                    <div
+                      key={segment.id}
+                      ref={isActive ? activeSegmentRef : null}
+                      className={cn(
+                        "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
+                        "hover:shadow-sm hover:scale-[1.01] active:scale-[0.99]",
+                        isActive && "bg-primary/10 border-primary/30 shadow-sm",
+                        !isActive && isHovered && "bg-muted/50 border-muted-foreground/20",
+                        !isActive && !isHovered && "border-transparent hover:border-muted-foreground/20",
+                        isCurrentSearchResult && "ring-2 ring-yellow-400 ring-offset-2"
+                      )}
+                      onClick={(e) => handleSegmentClick(segment, e)}
+                      onMouseEnter={() => setHoveredSegment(index)}
+                      onMouseLeave={() => setHoveredSegment(null)}
+                      title={`Click to jump to ${formatTime(segment.startTime)}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Timestamp */}
+                        <div className={cn(
+                          "text-xs font-mono min-w-[80px] flex items-center gap-1 transition-colors",
+                          isActive ? "text-primary font-medium" : "text-muted-foreground",
+                          isHovered && "text-foreground"
+                        )}>
+                          <Clock className="h-3 w-3" />
+                          {formatTime(segment.startTime)}
+                        </div>
+                        
+                        {/* Text Content */}
+                        <div className={cn(
+                          "flex-1 text-sm leading-relaxed transition-colors select-text",
+                          isActive && "font-medium text-foreground"
+                        )}>
+                          {highlightText(segment.text, searchTerm)}
+                        </div>
+
+                        {/* Play Icon on Hover */}
+                        <div className={cn(
+                          "opacity-0 group-hover:opacity-100 transition-opacity",
+                          isActive && "opacity-100"
+                        )}>
+                          <Play className={cn(
+                            "h-4 w-4 transition-colors",
+                            isActive ? "text-primary" : "text-muted-foreground"
+                          )} />
+                        </div>
                       </div>
-                      <div className="flex-1 text-sm leading-relaxed">
-                        {highlightText(segment.text, searchTerm)}
-                      </div>
+
+                      {/* Progress Bar for Active Segment */}
+                      {isActive && (
+                        <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary transition-all duration-300 ease-out"
+                            style={{
+                              width: `${Math.min(100, Math.max(0, 
+                                ((currentTime - segment.startTime) / (segment.endTime - segment.startTime)) * 100
+                              ))}%`
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No transcript segments found</p>
-                <p className="text-xs mt-1">
-                  Make sure the transcript is in SRT format
-                </p>
-              </div>
-            )}
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No transcript segments found</p>
+                  <p className="text-xs mt-1">
+                    Make sure the transcript is in SRT format with timestamps
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </CardContent>

@@ -1,4 +1,3 @@
-
 export interface SubtitleSegment {
   id: number;
   startTime: number; // in seconds
@@ -86,4 +85,32 @@ export const formatTime = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
+
+// Format seconds to HH:MM:SS.mmm for SRT timestamps
+export const formatSRTTimestamp = (seconds: number): string => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const milliseconds = Math.floor((seconds % 1) * 1000);
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
+};
+
+// Convert plain text to SRT format with estimated timing
+export const textToSRT = (text: string, duration: number): string => {
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const timePerSentence = duration / sentences.length;
+  
+  let srt = '';
+  sentences.forEach((sentence, index) => {
+    const startTime = index * timePerSentence;
+    const endTime = Math.min((index + 1) * timePerSentence, duration);
+    
+    srt += `${index + 1}\n`;
+    srt += `${formatSRTTimestamp(startTime)} --> ${formatSRTTimestamp(endTime)}\n`;
+    srt += `${sentence.trim()}\n\n`;
+  });
+  
+  return srt;
 };
