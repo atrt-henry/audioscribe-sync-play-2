@@ -303,7 +303,7 @@ const MultiAudioManager: React.FC = () => {
           <Alert className="mt-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Maximum file size: 100MB. Transcript files will be automatically linked to audio files with matching names (e.g., "audio.mp3" + "audio.srt").
+              Transcript files will be automatically linked to audio files with matching names (e.g., "audio.mp3" + "audio.srt").
             </AlertDescription>
           </Alert>
         </CardContent>
