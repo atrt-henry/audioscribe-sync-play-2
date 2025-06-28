@@ -83,14 +83,9 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
       />
 
       <div className="flex flex-col items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className="rounded-full bg-primary/10 p-3">
-            <Upload className="h-6 w-6 text-primary" />
-          </div>
-          <div className="flex gap-1">
-            <FileAudio className="h-5 w-5 text-muted-foreground" />
-            <FileText className="h-5 w-5 text-muted-foreground" />
-          </div>
+        <div className="flex gap-1">
+          <FileAudio className="h-5 w-5 text-muted-foreground" />
+          <FileText className="h-5 w-5 text-muted-foreground" />
         </div>
 
         <div className="space-y-2">
