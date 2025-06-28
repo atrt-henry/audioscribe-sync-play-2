@@ -299,23 +299,6 @@ const MultiAudioManager: React.FC = () => {
             onFilesSelected={handleFileUpload}
             disabled={isUploading}
           />
-          
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
-            <div className="flex items-start gap-2">
-              <FileAudio className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium">Audio Formats:</p>
-                <p>{SUPPORTED_AUDIO_FORMATS.join(', ')}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <FileText className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium">Transcript Formats:</p>
-                <p>{SUPPORTED_TRANSCRIPT_FORMATS.join(', ')}</p>
-              </div>
-            </div>
-          </div>
 
           <Alert className="mt-4">
             <AlertCircle className="h-4 w-4" />
