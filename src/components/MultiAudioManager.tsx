@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -12,7 +12,8 @@ import {
   AlertCircle, 
   Grid3X3, 
   List,
-  Plus
+  Plus,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import FileDropZone from './FileDropZone';
@@ -28,6 +29,14 @@ const MultiAudioManager: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isUploading, setIsUploading] = useState(false);
+  const [showUploadSection, setShowUploadSection] = useState(true);
+
+  // Auto-hide upload section when files are loaded
+  useEffect(() => {
+    if (audioFiles.length > 0 && showUploadSection) {
+      setShowUploadSection(false);
+    }
+  }, [audioFiles.length, showUploadSection]);
 
   const validateFile = (file: File): string | null => {
     if (file.size > MAX_FILE_SIZE) {
@@ -258,14 +267,39 @@ const MultiAudioManager: React.FC = () => {
           </p>
         </div>
         
-        {audioFiles.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">
-              {audioFiles.length} files
-            </Badge>
-            <Badge variant="outline">
-              {formatFileSize(totalSize)}
-            </Badge>
+        <div className="flex items-center gap-2">
+          {audioFiles.length > 0 && (
+            <>
+              <Badge variant="outline">
+                {audioFiles.length} files
+              </Badge>
+              <Badge variant="outline">
+                {formatFileSize(totalSize)}
+              </Badge>
+              
+              {/* Add/Hide Upload Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowUploadSection(!showUploadSection)}
+                className="flex items-center gap-2"
+              >
+                {showUploadSection ? (
+                  <>
+                    <X className="h-4 w-4" />
+                    Hide Upload
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Add New Files
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+          
+          {audioFiles.length > 0 && (
             <div className="flex border rounded-md">
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
@@ -282,32 +316,34 @@ const MultiAudioManager: React.FC = () => {
                 <List className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Upload Zone - Always visible */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Upload Files
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FileDropZone 
-            onFilesSelected={handleFileUpload}
-            disabled={isUploading}
-          />
+      {/* Upload Zone - Conditionally visible */}
+      {showUploadSection && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Upload Files
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FileDropZone 
+              onFilesSelected={handleFileUpload}
+              disabled={isUploading}
+            />
 
-          <Alert className="mt-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Transcript files will be automatically linked to audio files with matching names (e.g., "audio.mp3" + "audio.srt").
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+            <Alert className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Transcript files will be automatically linked to audio files with matching names (e.g., "audio.mp3" + "audio.srt").
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Upload Progress */}
       {uploadProgress.length > 0 && (
