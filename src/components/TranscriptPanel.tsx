@@ -186,11 +186,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
             Interactive Transcript
           </CardTitle>
           <div className="flex items-center gap-2">
-            {segments.length > 0 && (
-              <Badge variant="outline" className="text-xs">
-                {segments.length} segments
-              </Badge>
-            )}
             <Button
               variant="ghost"
               size="sm"
@@ -272,14 +267,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Instructions */}
-            <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
-              <p className="flex items-center gap-2">
-                <Play className="h-4 w-4" />
-                Click on any transcript segment to jump to that time in the audio
-              </p>
-            </div>
-
             {/* Transcript Segments */}
             <div 
               ref={transcriptRef}
@@ -307,7 +294,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                       onClick={(e) => handleSegmentClick(segment, e)}
                       onMouseEnter={() => setHoveredSegment(index)}
                       onMouseLeave={() => setHoveredSegment(null)}
-                      title={`Click to jump to ${formatTime(segment.startTime)}`}
                     >
                       <div className="flex items-start gap-3">
                         {/* Text Content */}
