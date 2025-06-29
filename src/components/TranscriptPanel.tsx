@@ -65,6 +65,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
   const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
+  const [clickedSegmentId, setClickedSegmentId] = useState<number | null>(null);
   
   // Undo/Redo state
   const [history, setHistory] = useState<HistoryState[]>([]);
@@ -250,6 +251,9 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     event.preventDefault();
     event.stopPropagation();
     
+    // FIXED: Set clicked segment immediately to prevent glitch
+    setClickedSegmentId(segment.id);
+    
     if (isSyncing) {
       // Manual sync mode: clicking marks the end of this segment
       const updatedSegments = updateSegmentTiming(segments, segment.id, currentTime);
@@ -275,9 +279,11 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
       }
     } else {
       // Normal mode: seek to segment - FIXED to prevent glitch
-      setTimeout(() => {
+      // Use requestAnimationFrame to ensure proper timing
+      requestAnimationFrame(() => {
         onSeek(segment.startTime);
-      }, 0);
+        setClickedSegmentId(null);
+      });
       
       // Provide visual feedback
       const target = event.currentTarget as HTMLElement;
@@ -492,7 +498,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               </Button>
             </div>
 
-            {/* Editable Segments */}
+            {/* Editable Segments - NO TIMESTAMPS IN EDIT MODE */}
             <div 
               ref={transcriptRef}
               className="max-h-[400px] overflow-y-auto space-y-1 custom-scrollbar"
@@ -501,6 +507,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                 const isActive = currentSegment?.id === segment.id;
                 const isSelected = selectedSegments.includes(segment.id);
                 const isEditingThis = editingSegmentId === segment.id;
+                const isClicked = clickedSegmentId === segment.id;
                 
                 return (
                   <div
@@ -509,23 +516,14 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                     className={cn(
                       "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
                       "hover:shadow-sm",
-                      isActive && "bg-primary/10 border-primary/30",
+                      isActive && !isClicked && "bg-primary/10 border-primary/30",
                       isSelected && "bg-blue-100 border-blue-300",
                       !isActive && !isSelected && "border-transparent hover:border-muted-foreground/20"
                     )}
                     onClick={(e) => handleSegmentClick(segment, e)}
                   >
                     <div className="flex items-start gap-3">
-                      {/* Timestamp - RESTORED */}
-                      <div className={cn(
-                        "text-xs font-mono min-w-[80px] flex items-center gap-1 transition-colors",
-                        isActive ? "text-primary font-medium" : "text-muted-foreground"
-                      )}>
-                        <Clock className="h-3 w-3" />
-                        {formatTime(segment.startTime)}
-                      </div>
-
-                      {/* Text Content */}
+                      {/* Text Content - Full width in edit mode */}
                       <div className="flex-1">
                         {isEditingThis ? (
                           <div className="space-y-2">
@@ -636,6 +634,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
             >
               {segments.map((segment, index) => {
                 const isActive = currentSegment?.id === segment.id;
+                const isClicked = clickedSegmentId === segment.id;
                 
                 return (
                   <div
@@ -644,14 +643,14 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                     className={cn(
                       "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
                       "hover:shadow-sm hover:bg-green-50 hover:border-green-300",
-                      isActive && "bg-primary/10 border-primary/30 ring-2 ring-primary/20",
+                      isActive && !isClicked && "bg-primary/10 border-primary/30 ring-2 ring-primary/20",
                       !isActive && "border-transparent"
                     )}
                     onClick={(e) => handleSegmentClick(segment, e)}
                     title="Click to mark end of this segment"
                   >
                     <div className="flex items-start gap-3">
-                      {/* Timestamp - RESTORED */}
+                      {/* Timestamp */}
                       <div className={cn(
                         "text-xs font-mono min-w-[80px] flex items-center gap-1 transition-colors",
                         isActive ? "text-primary font-medium" : "text-muted-foreground"
@@ -705,6 +704,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                 segments.map((segment, index) => {
                   const isActive = currentSegment?.id === segment.id;
                   const isHovered = hoveredSegment === index;
+                  const isClicked = clickedSegmentId === segment.id;
                   
                   return (
                     <div
@@ -713,7 +713,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                       className={cn(
                         "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
                         "hover:shadow-sm hover:scale-[1.01] active:scale-[0.99]",
-                        isActive && "bg-primary/10 border-primary/30 shadow-sm",
+                        isActive && !isClicked && "bg-primary/10 border-primary/30 shadow-sm",
                         !isActive && isHovered && "bg-muted/50 border-muted-foreground/20",
                         !isActive && !isHovered && "border-transparent hover:border-muted-foreground/20"
                       )}

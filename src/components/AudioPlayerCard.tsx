@@ -292,28 +292,37 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Compact Speed Control Dropdown */}
+            {/* Speed Control with Slider */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-6 px-2 text-xs"
+                  className="h-6 px-2 text-xs min-w-[40px]"
                 >
-                  {playbackRate}x
-                  <ChevronDown className="h-3 w-3 ml-1" />
+                  1x
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
-                  <DropdownMenuItem 
-                    key={rate}
-                    onClick={() => handlePlaybackRateChange(rate)}
-                    className={playbackRate === rate ? "bg-accent" : ""}
-                  >
-                    {rate}x Speed
-                  </DropdownMenuItem>
-                ))}
+              <DropdownMenuContent align="end" className="w-48">
+                <div className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium">Speed</span>
+                    <span className="text-xs">{playbackRate}x</span>
+                  </div>
+                  <Slider
+                    value={[playbackRate]}
+                    min={0.25}
+                    max={3}
+                    step={0.25}
+                    onValueChange={(value) => handlePlaybackRateChange(value[0])}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>0.25x</span>
+                    <span>1x</span>
+                    <span>3x</span>
+                  </div>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
 
