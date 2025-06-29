@@ -65,7 +65,11 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
   const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
-  const [clickedSegmentId, setClickedSegmentId] = useState<number | null>(null);
+  
+  // CRITICAL FIX: Track click state to prevent glitch
+  const [isSeekingFromClick, setIsSeekingFromClick] = useState(false);
+  const [targetSegmentId, setTargetSegmentId] = useState<number | null>(null);
+  const seekTimeoutRef = useRef<NodeJS.Timeout>();
   
   // Undo/Redo state
   const [history, setHistory] = useState<HistoryState[]>([]);
@@ -124,12 +128,42 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   }, [transcript]);
 
   useEffect(() => {
-    // Update current segment based on time
-    if (segments.length > 0) {
+    // CRITICAL FIX: Only update current segment if not seeking from click
+    if (segments.length > 0 && !isSeekingFromClick) {
       const segment = findCurrentSegment(segments, currentTime);
       setCurrentSegment(segment);
     }
-  }, [segments, currentTime]);
+  }, [segments, currentTime, isSeekingFromClick]);
+
+  // CRITICAL FIX: Handle seek completion
+  useEffect(() => {
+    if (isSeekingFromClick && targetSegmentId) {
+      // Clear any existing timeout
+      if (seekTimeoutRef.current) {
+        clearTimeout(seekTimeoutRef.current);
+      }
+      
+      // Set a timeout to reset the seeking state
+      seekTimeoutRef.current = setTimeout(() => {
+        setIsSeekingFromClick(false);
+        
+        // Now find the correct current segment
+        const segment = findCurrentSegment(segments, currentTime);
+        setCurrentSegment(segment);
+        
+        setTargetSegmentId(null);
+      }, 100); // Small delay to ensure seek has completed
+    }
+  }, [isSeekingFromClick, targetSegmentId, segments, currentTime]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (seekTimeoutRef.current) {
+        clearTimeout(seekTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Auto-scroll to active segment with smooth behavior
@@ -251,9 +285,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     event.preventDefault();
     event.stopPropagation();
     
-    // FIXED: Set clicked segment immediately to prevent glitch
-    setClickedSegmentId(segment.id);
-    
     if (isSyncing) {
       // Manual sync mode: clicking marks the end of this segment
       const updatedSegments = updateSegmentTiming(segments, segment.id, currentTime);
@@ -278,14 +309,19 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
         );
       }
     } else {
-      // Normal mode: seek to segment - FIXED to prevent glitch
-      // Use requestAnimationFrame to ensure proper timing
-      requestAnimationFrame(() => {
-        onSeek(segment.startTime);
-        setClickedSegmentId(null);
-      });
+      // CRITICAL FIX: Normal mode seeking with glitch prevention
       
-      // Provide visual feedback
+      // 1. Immediately set the target segment as current to prevent glitch
+      setCurrentSegment(segment);
+      
+      // 2. Set seeking state to prevent automatic current segment updates
+      setIsSeekingFromClick(true);
+      setTargetSegmentId(segment.id);
+      
+      // 3. Perform the seek
+      onSeek(segment.startTime);
+      
+      // 4. Provide visual feedback
       const target = event.currentTarget as HTMLElement;
       target.style.transform = 'scale(0.98)';
       setTimeout(() => {
@@ -507,7 +543,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                 const isActive = currentSegment?.id === segment.id;
                 const isSelected = selectedSegments.includes(segment.id);
                 const isEditingThis = editingSegmentId === segment.id;
-                const isClicked = clickedSegmentId === segment.id;
                 
                 return (
                   <div
@@ -516,7 +551,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                     className={cn(
                       "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
                       "hover:shadow-sm",
-                      isActive && !isClicked && "bg-primary/10 border-primary/30",
+                      isActive && "bg-primary/10 border-primary/30",
                       isSelected && "bg-blue-100 border-blue-300",
                       !isActive && !isSelected && "border-transparent hover:border-muted-foreground/20"
                     )}
@@ -634,7 +669,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
             >
               {segments.map((segment, index) => {
                 const isActive = currentSegment?.id === segment.id;
-                const isClicked = clickedSegmentId === segment.id;
                 
                 return (
                   <div
@@ -643,7 +677,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                     className={cn(
                       "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
                       "hover:shadow-sm hover:bg-green-50 hover:border-green-300",
-                      isActive && !isClicked && "bg-primary/10 border-primary/30 ring-2 ring-primary/20",
+                      isActive && "bg-primary/10 border-primary/30 ring-2 ring-primary/20",
                       !isActive && "border-transparent"
                     )}
                     onClick={(e) => handleSegmentClick(segment, e)}
@@ -704,7 +738,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                 segments.map((segment, index) => {
                   const isActive = currentSegment?.id === segment.id;
                   const isHovered = hoveredSegment === index;
-                  const isClicked = clickedSegmentId === segment.id;
                   
                   return (
                     <div
@@ -713,7 +746,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                       className={cn(
                         "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
                         "hover:shadow-sm hover:scale-[1.01] active:scale-[0.99]",
-                        isActive && !isClicked && "bg-primary/10 border-primary/30 shadow-sm",
+                        isActive && "bg-primary/10 border-primary/30 shadow-sm",
                         !isActive && isHovered && "bg-muted/50 border-muted-foreground/20",
                         !isActive && !isHovered && "border-transparent hover:border-muted-foreground/20"
                       )}
