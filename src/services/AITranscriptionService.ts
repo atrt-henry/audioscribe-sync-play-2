@@ -13,6 +13,24 @@ class AITranscriptionService {
     }
   }
 
+  private static cleanTranscriptText(text: string): string {
+    // Remove common AI commentary patterns
+    const cleanedText = text
+      // Remove introductory phrases
+      .replace(/^(Here is the|Here's the|This is the|The following is the)\s*(SRT\s*)?(transcription|transcript)\s*(for|of)\s*(the\s*)?(provided\s*)?(audio\s*)?(file|files?)?\s*:?\s*/gi, '')
+      // Remove concluding phrases
+      .replace(/\s*(That's the|This completes the|End of)\s*(transcription|transcript)\.?\s*$/gi, '')
+      // Remove timestamp references in text
+      .replace(/\s*\[?\d{2}:\d{2}:\d{2}[,\.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,\.]\d{3}\]?\s*/g, ' ')
+      // Remove SRT sequence numbers at start of lines
+      .replace(/^\d+\s*$/gm, '')
+      // Remove empty lines and extra whitespace
+      .replace(/\n\s*\n/g, '\n')
+      .trim();
+
+    return cleanedText;
+  }
+
   private static async transcribeWithGemini(audioFile: File, apiKey: string, modelId: string): Promise<string> {
     try {
       // Convert audio file to base64
@@ -27,7 +45,7 @@ class AITranscriptionService {
           contents: [{
             parts: [
               {
-                text: "Please transcribe this audio file and return the result in SRT format with timestamps. Include speaker identification if multiple speakers are detected."
+                text: "Transcribe this audio file. Return only the spoken text without any introductory phrases, timestamps, or commentary. Do not include phrases like 'Here is the transcription' or similar."
               },
               {
                 inline_data: {
@@ -47,7 +65,17 @@ class AITranscriptionService {
       const data = await response.json();
       
       if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        return data.candidates[0].content.parts[0].text;
+        const rawText = data.candidates[0].content.parts[0].text;
+        const cleanedText = this.cleanTranscriptText(rawText);
+        
+        // Convert to SRT format
+        const audio = new Audio(URL.createObjectURL(audioFile));
+        await new Promise((resolve) => {
+          audio.addEventListener('loadedmetadata', resolve);
+        });
+        
+        const duration = audio.duration || 60;
+        return textToSRT(cleanedText, duration);
       } else {
         throw new Error('No transcription content received from Gemini');
       }
@@ -104,6 +132,7 @@ class AITranscriptionService {
       }
 
       const transcriptionText = await response.text();
+      const cleanedText = this.cleanTranscriptText(transcriptionText);
       
       // Convert plain text to SRT format
       const audio = new Audio(URL.createObjectURL(audioFile));
@@ -112,7 +141,7 @@ class AITranscriptionService {
       });
       
       const duration = audio.duration || 60; // fallback to 60 seconds
-      return textToSRT(transcriptionText, duration);
+      return textToSRT(cleanedText, duration);
     } catch (error) {
       console.error('Groq transcription error:', error);
       throw error;
@@ -224,14 +253,16 @@ class AITranscriptionService {
         
         // Try to convert plain text to SRT format
         if (transcription && transcription.trim()) {
-          // Create a simple SRT with the full text
+          const cleanedText = this.cleanTranscriptText(transcription);
+          
+          // Create a simple SRT with the cleaned text
           const audio = new Audio(URL.createObjectURL(audioFile));
           await new Promise((resolve) => {
             audio.addEventListener('loadedmetadata', resolve);
           });
           
           const duration = audio.duration || 60; // fallback to 60 seconds
-          transcription = textToSRT(transcription.trim(), duration);
+          transcription = textToSRT(cleanedText, duration);
         } else {
           // Generate a placeholder SRT
           const audio = new Audio(URL.createObjectURL(audioFile));
