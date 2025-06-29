@@ -478,13 +478,7 @@ const MultiAudioManager: React.FC = () => {
       {/* Upload Zone - Show when no files OR when manually toggled */}
       {(audioFiles.length === 0 || showUploadSection) && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Upload Files
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <FileDropZone 
               onFilesSelected={handleFileUpload}
               disabled={isUploading}
