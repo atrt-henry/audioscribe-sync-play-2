@@ -1,17 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { 
-  Search, 
   Edit3, 
   Save, 
   Download, 
   X, 
-  ChevronUp, 
-  ChevronDown,
   Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -32,9 +28,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTranscript, setEditedTranscript] = useState(transcript);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<number[]>([]);
-  const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
   const [segments, setSegments] = useState<SubtitleSegment[]>([]);
   const [currentSegment, setCurrentSegment] = useState<SubtitleSegment | null>(null);
   const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
@@ -83,23 +76,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     }
   }, [currentSegment]);
 
-  useEffect(() => {
-    // Perform search
-    if (searchTerm.trim()) {
-      const results: number[] = [];
-      segments.forEach((segment, index) => {
-        if (segment.text.toLowerCase().includes(searchTerm.toLowerCase())) {
-          results.push(index);
-        }
-      });
-      setSearchResults(results);
-      setCurrentSearchIndex(results.length > 0 ? 0 : -1);
-    } else {
-      setSearchResults([]);
-      setCurrentSearchIndex(-1);
-    }
-  }, [searchTerm, segments]);
-
   const handleSave = () => {
     onTranscriptUpdate(editedTranscript);
     setIsEditing(false);
@@ -137,45 +113,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const navigateSearch = (direction: 'next' | 'prev') => {
-    if (searchResults.length === 0) return;
-
-    let newIndex;
-    if (direction === 'next') {
-      newIndex = (currentSearchIndex + 1) % searchResults.length;
-    } else {
-      newIndex = currentSearchIndex <= 0 
-        ? searchResults.length - 1 
-        : currentSearchIndex - 1;
-    }
-    
-    setCurrentSearchIndex(newIndex);
-    
-    // Scroll to search result and seek to that time
-    const segmentIndex = searchResults[newIndex];
-    const segment = segments[segmentIndex];
-    if (segment) {
-      onSeek(segment.startTime);
-    }
-  };
-
-  const highlightText = (text: string, searchTerm: string): React.ReactNode => {
-    if (!searchTerm.trim()) return text;
-
-    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    const parts = text.split(regex);
-
-    return parts.map((part, index) => 
-      regex.test(part) ? (
-        <mark key={index} className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">
-          {part}
-        </mark>
-      ) : (
-        part
-      )
-    );
-  };
-
   return (
     <Card className="mt-4">
       <CardHeader className="pb-3">
@@ -204,43 +141,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               <Edit3 className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-
-        {/* Search Bar */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search transcript..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
-          {searchResults.length > 0 && (
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-muted-foreground">
-                {currentSearchIndex + 1} of {searchResults.length}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigateSearch('prev')}
-                className="h-8 w-8 p-0"
-              >
-                <ChevronUp className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigateSearch('next')}
-                className="h-8 w-8 p-0"
-              >
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
         </div>
       </CardHeader>
 
@@ -274,8 +174,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               {segments.length > 0 ? (
                 segments.map((segment, index) => {
                   const isActive = currentSegment?.id === segment.id;
-                  const isSearchResult = searchResults.includes(index);
-                  const isCurrentSearchResult = searchResults[currentSearchIndex] === index;
                   const isHovered = hoveredSegment === index;
                   
                   return (
@@ -287,8 +185,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                         "hover:shadow-sm hover:scale-[1.01] active:scale-[0.99]",
                         isActive && "bg-primary/10 border-primary/30 shadow-sm",
                         !isActive && isHovered && "bg-muted/50 border-muted-foreground/20",
-                        !isActive && !isHovered && "border-transparent hover:border-muted-foreground/20",
-                        isCurrentSearchResult && "ring-2 ring-yellow-400 ring-offset-2"
+                        !isActive && !isHovered && "border-transparent hover:border-muted-foreground/20"
                       )}
                       onClick={(e) => handleSegmentClick(segment, e)}
                       onMouseEnter={() => setHoveredSegment(index)}
@@ -300,7 +197,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                           "flex-1 text-sm leading-relaxed transition-colors select-text",
                           isActive && "font-medium text-foreground"
                         )}>
-                          {highlightText(segment.text, searchTerm)}
+                          {segment.text}
                         </div>
                       </div>
                     </div>
