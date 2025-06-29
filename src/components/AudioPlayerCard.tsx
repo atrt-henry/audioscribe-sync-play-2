@@ -12,9 +12,6 @@ import {
   FileText, 
   ChevronDown, 
   ChevronUp,
-  Download,
-  Edit3,
-  Search,
   Sparkles,
   Loader2,
   SkipBack,
@@ -23,7 +20,6 @@ import {
 import { cn } from '@/lib/utils';
 import { AudioFile } from '@/types/audio';
 import TranscriptPanel from './TranscriptPanel';
-import WaveformVisualization from './WaveformVisualization';
 import AITranscriptionService from '@/services/AITranscriptionService';
 import { toast } from 'sonner';
 
@@ -44,7 +40,6 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1);
   const [showTranscript, setShowTranscript] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGeneratingTranscript, setIsGeneratingTranscript] = useState(false);
@@ -149,14 +144,6 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
     audio.muted = newMuted;
   };
 
-  const handlePlaybackRateChange = (rate: number) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    setPlaybackRate(rate);
-    audio.playbackRate = rate;
-  };
-
   const handleGenerateTranscript = async () => {
     if (isGeneratingTranscript) return;
 
@@ -194,14 +181,6 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
   const handleDelete = () => {
     if (window.confirm(`Are you sure you want to delete "${audioFile.name}"?`)) {
       onDelete(audioFile.id);
@@ -216,26 +195,18 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
         preload="metadata"
       />
 
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-medium truncate" title={audioFile.name}>
+            <h3 className="font-medium truncate text-sm" title={audioFile.name}>
               {audioFile.name}
             </h3>
-            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-              <span>{formatTime(audioFile.duration)}</span>
-              <span>•</span>
-              <span>{formatFileSize(audioFile.size)}</span>
-              {audioFile.hasTranscript && (
-                <>
-                  <span>•</span>
-                  <Badge variant="secondary" className="text-xs">
-                    <FileText className="h-3 w-3 mr-1" />
-                    Interactive
-                  </Badge>
-                </>
-              )}
-            </div>
+            {audioFile.hasTranscript && (
+              <Badge variant="secondary" className="text-xs mt-1">
+                <FileText className="h-3 w-3 mr-1" />
+                Interactive
+              </Badge>
+            )}
           </div>
           
           <div className="flex items-center gap-1">
@@ -244,13 +215,13 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowTranscript(!showTranscript)}
-                className="h-8 w-8 p-0"
+                className="h-6 w-6 p-0"
                 title={showTranscript ? "Hide transcript" : "Show transcript"}
               >
                 {showTranscript ? (
-                  <ChevronUp className="h-4 w-4" />
+                  <ChevronUp className="h-3 w-3" />
                 ) : (
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className="h-3 w-3" />
                 )}
               </Button>
             )}
@@ -258,28 +229,18 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
               variant="ghost"
               size="sm"
               onClick={handleDelete}
-              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
               title="Delete audio file"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3 w-3" />
             </Button>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Waveform Visualization */}
-        <WaveformVisualization
-          audioUrl={audioFile.url}
-          currentTime={currentTime}
-          duration={audioFile.duration}
-          isPlaying={isPlaying}
-          onSeek={(time) => handleSeek([time])}
-          className="mb-2"
-        />
-
+      <CardContent className="space-y-3 pt-0">
         {/* Progress Bar */}
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Slider
             value={[currentTime]}
             max={audioFile.duration}
@@ -295,16 +256,16 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
 
         {/* Main Controls */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
               onClick={handleSkipBack}
               disabled={!isLoaded}
               title="Skip back 10 seconds"
-              className="h-8 w-8 p-0"
+              className="h-7 w-7 p-0"
             >
-              <SkipBack className="h-4 w-4" />
+              <SkipBack className="h-3 w-3" />
             </Button>
 
             <Button
@@ -312,12 +273,12 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
               size="sm"
               onClick={handlePlayPause}
               disabled={!isLoaded}
-              className="h-10 w-10 p-0"
+              className="h-8 w-8 p-0"
             >
               {isPlaying ? (
-                <Pause className="h-5 w-5" />
+                <Pause className="h-4 w-4" />
               ) : (
-                <Play className="h-5 w-5" />
+                <Play className="h-4 w-4" />
               )}
             </Button>
 
@@ -327,40 +288,25 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
               onClick={handleSkipForward}
               disabled={!isLoaded}
               title="Skip forward 10 seconds"
-              className="h-8 w-8 p-0"
+              className="h-7 w-7 p-0"
             >
-              <SkipForward className="h-4 w-4" />
+              <SkipForward className="h-3 w-3" />
             </Button>
           </div>
 
+          {/* Volume Control */}
           <div className="flex items-center gap-2">
-            {/* Playback Rate */}
-            <div className="flex items-center gap-1">
-              {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
-                <Button
-                  key={rate}
-                  variant={playbackRate === rate ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => handlePlaybackRateChange(rate)}
-                  className="h-6 px-2 text-xs"
-                >
-                  {rate}x
-                </Button>
-              ))}
-            </div>
-
-            {/* Volume Control */}
             <Button
               variant="ghost"
               size="sm"
               onClick={handleMuteToggle}
-              className="h-8 w-8 p-0"
+              className="h-6 w-6 p-0"
               title={isMuted ? "Unmute" : "Mute"}
             >
               {isMuted || volume === 0 ? (
-                <VolumeX className="h-4 w-4" />
+                <VolumeX className="h-3 w-3" />
               ) : (
-                <Volume2 className="h-4 w-4" />
+                <Volume2 className="h-3 w-3" />
               )}
             </Button>
             <Slider
@@ -368,33 +314,32 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
               max={1}
               step={0.1}
               onValueChange={handleVolumeChange}
-              className="w-20"
+              className="w-16"
             />
           </div>
         </div>
 
         {/* AI Transcription Button */}
         {!audioFile.hasTranscript && (
-          <div className="pt-2 border-t">
-            <Button
-              onClick={handleGenerateTranscript}
-              disabled={isGeneratingTranscript}
-              className="w-full"
-              variant="outline"
-            >
-              {isGeneratingTranscript ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating Interactive Transcript...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Interactive Transcript
-                </>
-              )}
-            </Button>
-          </div>
+          <Button
+            onClick={handleGenerateTranscript}
+            disabled={isGeneratingTranscript}
+            className="w-full h-8"
+            variant="outline"
+            size="sm"
+          >
+            {isGeneratingTranscript ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3 w-3 mr-2" />
+                Generate Transcript
+              </>
+            )}
+          </Button>
         )}
 
         {/* Interactive Transcript Panel */}
