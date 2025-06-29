@@ -310,16 +310,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                       title={`Click to jump to ${formatTime(segment.startTime)}`}
                     >
                       <div className="flex items-start gap-3">
-                        {/* Timestamp */}
-                        <div className={cn(
-                          "text-xs font-mono min-w-[80px] flex items-center gap-1 transition-colors",
-                          isActive ? "text-primary font-medium" : "text-muted-foreground",
-                          isHovered && "text-foreground"
-                        )}>
-                          <Clock className="h-3 w-3" />
-                          {formatTime(segment.startTime)}
-                        </div>
-                        
                         {/* Text Content */}
                         <div className={cn(
                           "flex-1 text-sm leading-relaxed transition-colors select-text",
