@@ -3,15 +3,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { 
   Edit3, 
   Save, 
   Download, 
   X, 
-  Clock
+  Clock,
+  Merge,
+  Split,
+  Timer,
+  Play
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { parseSRT, findCurrentSegment, SubtitleSegment, formatTime } from '@/utils/srtParser';
+import { 
+  parseSRT, 
+  findCurrentSegment, 
+  SubtitleSegment, 
+  formatTime, 
+  segmentsToSRT,
+  mergeSegments,
+  splitSegment,
+  updateSegmentTiming,
+  updateSegmentText
+} from '@/utils/srtParser';
 
 interface TranscriptPanelProps {
   transcript: string;
@@ -27,10 +42,14 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   onTranscriptUpdate
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [editedTranscript, setEditedTranscript] = useState(transcript);
   const [segments, setSegments] = useState<SubtitleSegment[]>([]);
   const [currentSegment, setCurrentSegment] = useState<SubtitleSegment | null>(null);
   const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
+  const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
+  const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState('');
   
   const transcriptRef = useRef<HTMLDivElement>(null);
   const activeSegmentRef = useRef<HTMLDivElement>(null);
@@ -56,7 +75,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
 
   useEffect(() => {
     // Auto-scroll to active segment with smooth behavior
-    if (activeSegmentRef.current && currentSegment) {
+    if (activeSegmentRef.current && currentSegment && !isEditing && !isSyncing) {
       const container = transcriptRef.current;
       const element = activeSegmentRef.current;
       
@@ -74,31 +93,99 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
         }
       }
     }
-  }, [currentSegment]);
+  }, [currentSegment, isEditing, isSyncing]);
 
   const handleSave = () => {
-    onTranscriptUpdate(editedTranscript);
-    setIsEditing(false);
+    if (isEditing) {
+      // Save raw transcript edits
+      onTranscriptUpdate(editedTranscript);
+      setIsEditing(false);
+    } else if (isSyncing) {
+      // Save segment timing changes
+      const updatedSRT = segmentsToSRT(segments);
+      onTranscriptUpdate(updatedSRT);
+      setIsSyncing(false);
+      setSelectedSegments([]);
+    }
   };
 
   const handleCancel = () => {
-    setEditedTranscript(transcript);
-    setIsEditing(false);
+    if (isEditing) {
+      setEditedTranscript(transcript);
+      setIsEditing(false);
+    } else if (isSyncing) {
+      // Reload original segments
+      const parsedSegments = parseSRT(transcript);
+      setSegments(parsedSegments);
+      setIsSyncing(false);
+      setSelectedSegments([]);
+    }
+    setEditingSegmentId(null);
+    setEditingText('');
   };
 
   const handleSegmentClick = (segment: SubtitleSegment, event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     
-    // Provide visual feedback
-    const target = event.currentTarget as HTMLElement;
-    target.style.transform = 'scale(0.98)';
-    setTimeout(() => {
-      target.style.transform = '';
-    }, 150);
+    if (isSyncing) {
+      // Manual sync mode: clicking marks the end of this segment
+      const updatedSegments = updateSegmentTiming(segments, segment.id, currentTime);
+      setSegments(updatedSegments);
+      
+      // Provide visual feedback
+      const target = event.currentTarget as HTMLElement;
+      target.style.backgroundColor = 'rgba(34, 197, 94, 0.2)';
+      setTimeout(() => {
+        target.style.backgroundColor = '';
+      }, 500);
+    } else if (isEditing) {
+      // Edit mode: toggle segment selection or start text editing
+      if (event.detail === 2) { // Double click to edit text
+        setEditingSegmentId(segment.id);
+        setEditingText(segment.text);
+      } else { // Single click to select
+        setSelectedSegments(prev => 
+          prev.includes(segment.id) 
+            ? prev.filter(id => id !== segment.id)
+            : [...prev, segment.id]
+        );
+      }
+    } else {
+      // Normal mode: seek to segment
+      const target = event.currentTarget as HTMLElement;
+      target.style.transform = 'scale(0.98)';
+      setTimeout(() => {
+        target.style.transform = '';
+      }, 150);
+      
+      onSeek(segment.startTime);
+    }
+  };
+
+  const handleTextEdit = (segmentId: number, newText: string) => {
+    const updatedSegments = updateSegmentText(segments, segmentId, newText);
+    setSegments(updatedSegments);
+    setEditingSegmentId(null);
+    setEditingText('');
+  };
+
+  const handleMergeSegments = () => {
+    if (selectedSegments.length < 2) return;
     
-    // Seek to the segment start time
-    onSeek(segment.startTime);
+    const updatedSegments = mergeSegments(segments, selectedSegments);
+    setSegments(updatedSegments);
+    setSelectedSegments([]);
+  };
+
+  const handleSplitSegment = (segmentId: number) => {
+    const segment = segments.find(s => s.id === segmentId);
+    if (!segment) return;
+    
+    // Split at the middle of the segment duration
+    const splitTime = segment.startTime + (segment.endTime - segment.startTime) / 2;
+    const updatedSegments = splitSegment(segments, segmentId, splitTime);
+    setSegments(updatedSegments);
   };
 
   const handleDownload = () => {
@@ -113,6 +200,20 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const startSyncMode = () => {
+    setIsSyncing(true);
+    setIsEditing(false);
+    setSelectedSegments([]);
+    setEditingSegmentId(null);
+  };
+
+  const startEditMode = () => {
+    setIsEditing(true);
+    setIsSyncing(false);
+    setSelectedSegments([]);
+    setEditingSegmentId(null);
+  };
+
   return (
     <Card className="mt-4">
       <CardHeader className="pb-3">
@@ -120,6 +221,11 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
           <CardTitle className="text-lg flex items-center gap-2">
             <Clock className="h-5 w-5" />
             Interactive Transcript
+            {segments.length > 0 && (
+              <Badge variant="outline" className="text-xs">
+                {segments.length} segments
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex items-center gap-2">
             <Button
@@ -132,27 +238,158 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               <Download className="h-4 w-4" />
             </Button>
             <Button
-              variant="ghost"
+              variant={isSyncing ? "default" : "ghost"}
               size="sm"
-              onClick={() => setIsEditing(!isEditing)}
-              className="h-8 w-8 p-0"
-              title="Edit transcript"
+              onClick={startSyncMode}
+              className="h-8 px-3"
+              title="Manual sync mode"
             >
-              <Edit3 className="h-4 w-4" />
+              <Timer className="h-4 w-4 mr-1" />
+              Sync
+            </Button>
+            <Button
+              variant={isEditing ? "default" : "ghost"}
+              size="sm"
+              onClick={startEditMode}
+              className="h-8 px-3"
+              title="Edit mode"
+            >
+              <Edit3 className="h-4 w-4 mr-1" />
+              Edit
             </Button>
           </div>
         </div>
+
+        {/* Mode Instructions */}
+        {(isEditing || isSyncing) && (
+          <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
+            {isSyncing && (
+              <p className="flex items-center gap-2">
+                <Timer className="h-4 w-4" />
+                <strong>Sync Mode:</strong> Play audio and click segments to mark their end time. Each click sets the end of that segment and start of the next.
+              </p>
+            )}
+            {isEditing && (
+              <div className="space-y-1">
+                <p className="flex items-center gap-2">
+                  <Edit3 className="h-4 w-4" />
+                  <strong>Edit Mode:</strong> Double-click to edit text, single-click to select segments for merging.
+                </p>
+                {selectedSegments.length > 1 && (
+                  <p className="text-xs">
+                    {selectedSegments.length} segments selected for merging
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </CardHeader>
 
       <CardContent>
-        {isEditing ? (
-          <div className="space-y-3">
-            <Textarea
-              value={editedTranscript}
-              onChange={(e) => setEditedTranscript(e.target.value)}
-              className="min-h-[300px] font-mono text-sm"
-              placeholder="Enter transcript content..."
-            />
+        {isEditing && !isSyncing ? (
+          <div className="space-y-4">
+            {/* Edit Controls */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleMergeSegments}
+                disabled={selectedSegments.length < 2}
+                className="flex items-center gap-2"
+              >
+                <Merge className="h-4 w-4" />
+                Merge Selected ({selectedSegments.length})
+              </Button>
+            </div>
+
+            {/* Editable Segments */}
+            <div 
+              ref={transcriptRef}
+              className="max-h-[400px] overflow-y-auto space-y-1 custom-scrollbar"
+            >
+              {segments.map((segment, index) => {
+                const isActive = currentSegment?.id === segment.id;
+                const isSelected = selectedSegments.includes(segment.id);
+                const isEditingThis = editingSegmentId === segment.id;
+                
+                return (
+                  <div
+                    key={segment.id}
+                    ref={isActive ? activeSegmentRef : null}
+                    className={cn(
+                      "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
+                      "hover:shadow-sm",
+                      isActive && "bg-primary/10 border-primary/30",
+                      isSelected && "bg-blue-100 border-blue-300",
+                      !isActive && !isSelected && "border-transparent hover:border-muted-foreground/20"
+                    )}
+                    onClick={(e) => handleSegmentClick(segment, e)}
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Timestamp */}
+                      <div className="text-xs font-mono min-w-[80px] flex items-center gap-1 text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {formatTime(segment.startTime)}
+                      </div>
+                      
+                      {/* Text Content */}
+                      <div className="flex-1">
+                        {isEditingThis ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              className="min-h-[60px] text-sm"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleTextEdit(segment.id, editingText)}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingSegmentId(null);
+                                  setEditingText('');
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm leading-relaxed select-text">
+                            {segment.text}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSplitSegment(segment.id);
+                          }}
+                          className="h-6 w-6 p-0"
+                          title="Split segment"
+                        >
+                          <Split className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={handleCancel}>
                 <X className="h-4 w-4 mr-2" />
@@ -160,13 +397,77 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               </Button>
               <Button onClick={handleSave}>
                 <Save className="h-4 w-4 mr-2" />
-                Save
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        ) : isSyncing ? (
+          <div className="space-y-4">
+            {/* Sync Mode Segments */}
+            <div 
+              ref={transcriptRef}
+              className="max-h-[400px] overflow-y-auto space-y-1 custom-scrollbar"
+            >
+              {segments.map((segment, index) => {
+                const isActive = currentSegment?.id === segment.id;
+                
+                return (
+                  <div
+                    key={segment.id}
+                    ref={isActive ? activeSegmentRef : null}
+                    className={cn(
+                      "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
+                      "hover:shadow-sm hover:bg-green-50 hover:border-green-300",
+                      isActive && "bg-primary/10 border-primary/30",
+                      !isActive && "border-transparent"
+                    )}
+                    onClick={(e) => handleSegmentClick(segment, e)}
+                    title="Click to mark end of this segment"
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Timestamp */}
+                      <div className="text-xs font-mono min-w-[120px] flex flex-col gap-1 text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
+                        </div>
+                        <div className="text-xs text-green-600">
+                          Click to sync
+                        </div>
+                      </div>
+                      
+                      {/* Text Content */}
+                      <div className="flex-1 text-sm leading-relaxed">
+                        {segment.text}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={handleCancel}>
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+              <Button onClick={handleSave}>
+                <Save className="h-4 w-4 mr-2" />
+                Save Timing
               </Button>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Transcript Segments */}
+            {/* Instructions */}
+            <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
+              <p className="flex items-center gap-2">
+                <Play className="h-4 w-4" />
+                Click on any transcript segment to jump to that time in the audio
+              </p>
+            </div>
+
+            {/* Normal View Segments */}
             <div 
               ref={transcriptRef}
               className="max-h-[400px] overflow-y-auto space-y-1 custom-scrollbar"
@@ -190,8 +491,19 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                       onClick={(e) => handleSegmentClick(segment, e)}
                       onMouseEnter={() => setHoveredSegment(index)}
                       onMouseLeave={() => setHoveredSegment(null)}
+                      title={`Click to jump to ${formatTime(segment.startTime)}`}
                     >
                       <div className="flex items-start gap-3">
+                        {/* Timestamp */}
+                        <div className={cn(
+                          "text-xs font-mono min-w-[80px] flex items-center gap-1 transition-colors",
+                          isActive ? "text-primary font-medium" : "text-muted-foreground",
+                          isHovered && "text-foreground"
+                        )}>
+                          <Clock className="h-3 w-3" />
+                          {formatTime(segment.startTime)}
+                        </div>
+                        
                         {/* Text Content */}
                         <div className={cn(
                           "flex-1 text-sm leading-relaxed transition-colors select-text",
@@ -199,7 +511,32 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                         )}>
                           {segment.text}
                         </div>
+
+                        {/* Play Icon on Hover */}
+                        <div className={cn(
+                          "opacity-0 group-hover:opacity-100 transition-opacity",
+                          isActive && "opacity-100"
+                        )}>
+                          <Play className={cn(
+                            "h-4 w-4 transition-colors",
+                            isActive ? "text-primary" : "text-muted-foreground"
+                          )} />
+                        </div>
                       </div>
+
+                      {/* Progress Bar for Active Segment */}
+                      {isActive && (
+                        <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary transition-all duration-300 ease-out"
+                            style={{
+                              width: `${Math.min(100, Math.max(0, 
+                                ((currentTime - segment.startTime) / (segment.endTime - segment.startTime)) * 100
+                              ))}%`
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })
