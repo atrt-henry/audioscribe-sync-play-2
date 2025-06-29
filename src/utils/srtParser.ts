@@ -5,11 +5,6 @@ export interface SubtitleSegment {
   text: string;
 }
 
-export interface HistoryState {
-  segments: SubtitleSegment[];
-  timestamp: number;
-}
-
 // Convert SRT timestamp to seconds
 export const timestampToSeconds = (timestamp: string): number => {
   const parts = timestamp.split(':');
@@ -219,13 +214,12 @@ export const splitSegment = (
   return newSegments.map((seg, index) => ({ ...seg, id: index + 1 }));
 };
 
-// FIXED: Update segment timing (for manual sync) - Properly handles ID reassignment
+// Update segment timing (for manual sync)
 export const updateSegmentTiming = (
   segments: SubtitleSegment[], 
   segmentId: number, 
   newEndTime: number
 ): SubtitleSegment[] => {
-  // Find segment by ID first
   const segmentIndex = segments.findIndex(seg => seg.id === segmentId);
   if (segmentIndex === -1) return segments;
   
@@ -245,9 +239,7 @@ export const updateSegmentTiming = (
     };
   }
   
-  // CRITICAL: Sort by start time and reassign IDs to maintain proper sequence
-  const sortedSegments = newSegments.sort((a, b) => a.startTime - b.startTime);
-  return sortedSegments.map((seg, index) => ({ ...seg, id: index + 1 }));
+  return newSegments;
 };
 
 // Update segment text
@@ -278,69 +270,3 @@ export const deleteSegment = (
   // Reassign IDs to maintain sequence
   return newSegments.map((seg, index) => ({ ...seg, id: index + 1 }));
 };
-
-// Add line break at cursor position
-export const addLineBreak = (text: string, cursorPosition: number): string => {
-  return text.slice(0, cursorPosition) + '\n' + text.slice(cursorPosition);
-};
-
-// History management for undo/redo
-export class TranscriptHistory {
-  private history: HistoryState[] = [];
-  private currentIndex: number = -1;
-  private maxHistorySize: number = 50;
-
-  saveState(segments: SubtitleSegment[]): void {
-    // Remove any future states if we're not at the end
-    if (this.currentIndex < this.history.length - 1) {
-      this.history = this.history.slice(0, this.currentIndex + 1);
-    }
-
-    // Add new state
-    this.history.push({
-      segments: JSON.parse(JSON.stringify(segments)), // Deep copy
-      timestamp: Date.now()
-    });
-
-    // Limit history size
-    if (this.history.length > this.maxHistorySize) {
-      this.history.shift();
-    } else {
-      this.currentIndex++;
-    }
-  }
-
-  canUndo(): boolean {
-    return this.currentIndex > 0;
-  }
-
-  canRedo(): boolean {
-    return this.currentIndex < this.history.length - 1;
-  }
-
-  undo(): SubtitleSegment[] | null {
-    if (!this.canUndo()) return null;
-    
-    this.currentIndex--;
-    return JSON.parse(JSON.stringify(this.history[this.currentIndex].segments));
-  }
-
-  redo(): SubtitleSegment[] | null {
-    if (!this.canRedo()) return null;
-    
-    this.currentIndex++;
-    return JSON.parse(JSON.stringify(this.history[this.currentIndex].segments));
-  }
-
-  clear(): void {
-    this.history = [];
-    this.currentIndex = -1;
-  }
-
-  getCurrentState(): SubtitleSegment[] | null {
-    if (this.currentIndex >= 0 && this.currentIndex < this.history.length) {
-      return JSON.parse(JSON.stringify(this.history[this.currentIndex].segments));
-    }
-    return null;
-  }
-}
