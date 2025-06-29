@@ -73,7 +73,33 @@ class AITranscriptionService {
       });
 
       if (!response.ok) {
-        throw new Error(`Groq API error: ${response.status}`);
+        let errorMessage = `Groq API error: ${response.status}`;
+        
+        try {
+          // Try to get the detailed error response
+          const errorData = await response.json();
+          if (errorData.error) {
+            if (errorData.error.message) {
+              errorMessage += ` - ${errorData.error.message}`;
+            }
+            if (errorData.error.type) {
+              errorMessage += ` (${errorData.error.type})`;
+            }
+          }
+        } catch (parseError) {
+          // If JSON parsing fails, try to get plain text response
+          try {
+            const errorText = await response.text();
+            if (errorText) {
+              errorMessage += ` - ${errorText}`;
+            }
+          } catch (textError) {
+            // If both fail, just use the status code
+            errorMessage += ` - Unable to parse error response`;
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const transcription = await response.text();
