@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +13,11 @@ import {
   Split,
   Timer,
   Play,
-  Trash2
+  Trash2,
+  Plus,
+  Undo,
+  Redo,
+  Keyboard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -26,7 +30,8 @@ import {
   splitSegment,
   updateSegmentTiming,
   updateSegmentText,
-  deleteSegment
+  deleteSegment,
+  addSegment
 } from '@/utils/srtParser';
 
 interface TranscriptPanelProps {
@@ -35,6 +40,11 @@ interface TranscriptPanelProps {
   onSeek: (time: number) => void;
   onTranscriptUpdate: (transcript: string) => void;
   audioFileName?: string;
+}
+
+interface HistoryState {
+  segments: SubtitleSegment[];
+  timestamp: number;
 }
 
 const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
@@ -53,8 +63,39 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
   
+  // Undo/Redo state
+  const [history, setHistory] = useState<HistoryState[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  
   const transcriptRef = useRef<HTMLDivElement>(null);
   const activeSegmentRef = useRef<HTMLDivElement>(null);
+
+  // Save state to history
+  const saveToHistory = useCallback((newSegments: SubtitleSegment[]) => {
+    const newState: HistoryState = {
+      segments: JSON.parse(JSON.stringify(newSegments)), // Deep clone
+      timestamp: Date.now()
+    };
+    
+    // Remove any future history if we're not at the end
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(newState);
+    
+    // Limit history to 50 states
+    if (newHistory.length > 50) {
+      newHistory.shift();
+    } else {
+      setHistoryIndex(prev => prev + 1);
+    }
+    
+    setHistory(newHistory);
+  }, [history, historyIndex]);
+
+  // Update segments with history tracking
+  const updateSegments = useCallback((newSegments: SubtitleSegment[]) => {
+    setSegments(newSegments);
+    saveToHistory(newSegments);
+  }, [saveToHistory]);
 
   useEffect(() => {
     // Parse transcript into segments and filter out empty ones
@@ -62,6 +103,16 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
       const parsedSegments = parseSRT(transcript);
       const validSegments = parsedSegments.filter(seg => seg.text.trim().length > 0);
       setSegments(validSegments);
+      
+      // Initialize history
+      if (validSegments.length > 0) {
+        const initialState: HistoryState = {
+          segments: JSON.parse(JSON.stringify(validSegments)),
+          timestamp: Date.now()
+        };
+        setHistory([initialState]);
+        setHistoryIndex(0);
+      }
     } catch (error) {
       console.error('Error parsing transcript:', error);
       setSegments([]);
@@ -98,6 +149,74 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     }
   }, [currentSegment, isEditing, isSyncing]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle shortcuts when in editing or syncing mode
+      if (!isEditing && !isSyncing) return;
+      
+      // Prevent shortcuts when typing in textarea
+      if (event.target instanceof HTMLTextAreaElement) return;
+      
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key.toLowerCase()) {
+          case 'z':
+            event.preventDefault();
+            if (event.shiftKey) {
+              handleRedo();
+            } else {
+              handleUndo();
+            }
+            break;
+          case 'y':
+            event.preventDefault();
+            handleRedo();
+            break;
+          case 's':
+            event.preventDefault();
+            handleSave();
+            break;
+        }
+      } else {
+        switch (event.key.toLowerCase()) {
+          case 'm':
+            if (isSyncing) {
+              event.preventDefault();
+              // Mark current segment at current time
+              if (currentSegment) {
+                const updatedSegments = updateSegmentTiming(segments, currentSegment.id, currentTime);
+                updateSegments(updatedSegments);
+              }
+            }
+            break;
+          case 'escape':
+            event.preventDefault();
+            handleCancel();
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isEditing, isSyncing, segments, currentSegment, currentTime, history, historyIndex]);
+
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setSegments(history[newIndex].segments);
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setSegments(history[newIndex].segments);
+    }
+  };
+
   const handleSave = () => {
     if (isEditing || isSyncing) {
       // Filter out empty segments before saving
@@ -131,7 +250,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     if (isSyncing) {
       // Manual sync mode: clicking marks the end of this segment
       const updatedSegments = updateSegmentTiming(segments, segment.id, currentTime);
-      setSegments(updatedSegments);
+      updateSegments(updatedSegments);
       
       // Provide visual feedback
       const target = event.currentTarget as HTMLElement;
@@ -167,11 +286,11 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     if (newText.trim().length === 0) {
       // Delete the segment if text is empty
       const updatedSegments = deleteSegment(segments, segmentId);
-      setSegments(updatedSegments);
+      updateSegments(updatedSegments);
     } else {
       // Update the segment text
       const updatedSegments = updateSegmentText(segments, segmentId, newText);
-      setSegments(updatedSegments);
+      updateSegments(updatedSegments);
     }
     setEditingSegmentId(null);
     setEditingText('');
@@ -179,7 +298,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
 
   const handleDeleteSegment = (segmentId: number) => {
     const updatedSegments = deleteSegment(segments, segmentId);
-    setSegments(updatedSegments);
+    updateSegments(updatedSegments);
     setSelectedSegments(prev => prev.filter(id => id !== segmentId));
   };
 
@@ -187,7 +306,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     if (selectedSegments.length < 2) return;
     
     const updatedSegments = mergeSegments(segments, selectedSegments);
-    setSegments(updatedSegments);
+    updateSegments(updatedSegments);
     setSelectedSegments([]);
   };
 
@@ -198,7 +317,12 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     // Split at the middle of the segment duration
     const splitTime = segment.startTime + (segment.endTime - segment.startTime) / 2;
     const updatedSegments = splitSegment(segments, segmentId, splitTime);
-    setSegments(updatedSegments);
+    updateSegments(updatedSegments);
+  };
+
+  const handleAddSegment = (position: 'beginning' | 'end' | number) => {
+    const updatedSegments = addSegment(segments, position, 'New segment', 5);
+    updateSegments(updatedSegments);
   };
 
   const handleDownload = () => {
@@ -241,6 +365,32 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
             Interactive Transcript
           </CardTitle>
           <div className="flex items-center gap-2">
+            {/* Undo/Redo buttons */}
+            {(isEditing || isSyncing) && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleUndo}
+                  disabled={historyIndex <= 0}
+                  className="h-8 w-8 p-0"
+                  title="Undo (Ctrl+Z)"
+                >
+                  <Undo className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRedo}
+                  disabled={historyIndex >= history.length - 1}
+                  className="h-8 w-8 p-0"
+                  title="Redo (Ctrl+Y)"
+                >
+                  <Redo className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+            
             <Button
               variant="ghost"
               size="sm"
@@ -277,16 +427,29 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
         {(isEditing || isSyncing) && (
           <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
             {isSyncing && (
-              <p className="flex items-center gap-2">
-                <Timer className="h-4 w-4" />
-                <strong>Sync Mode:</strong> Play audio and click segments to mark their end time. Each click sets the end of that segment and start of the next.
-              </p>
+              <div className="space-y-1">
+                <p className="flex items-center gap-2">
+                  <Timer className="h-4 w-4" />
+                  <strong>Sync Mode:</strong> Play audio and click segments to mark their end time. Each click sets the end of that segment and start of the next.
+                </p>
+                <p className="flex items-center gap-2 text-xs">
+                  <Keyboard className="h-3 w-3" />
+                  Press <kbd className="px-1 py-0.5 bg-muted rounded text-xs">M</kbd> to mark current segment at current time
+                </p>
+              </div>
             )}
             {isEditing && (
               <div className="space-y-1">
                 <p className="flex items-center gap-2">
                   <Edit3 className="h-4 w-4" />
                   <strong>Edit Mode:</strong> Double-click to edit text, single-click to select segments for merging. Delete all text to remove segment.
+                </p>
+                <p className="flex items-center gap-2 text-xs">
+                  <Keyboard className="h-3 w-3" />
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Ctrl+Z</kbd> Undo • 
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Ctrl+Y</kbd> Redo • 
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Ctrl+S</kbd> Save • 
+                  <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Esc</kbd> Cancel
                 </p>
                 {selectedSegments.length > 1 && (
                   <p className="text-xs">
@@ -303,7 +466,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
         {isEditing && !isSyncing ? (
           <div className="space-y-4">
             {/* Edit Controls */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -313,6 +476,26 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               >
                 <Merge className="h-4 w-4" />
                 Merge Selected ({selectedSegments.length})
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleAddSegment('beginning')}
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add at Start
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleAddSegment('end')}
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add at End
               </Button>
             </div>
 
@@ -384,6 +567,18 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleAddSegment(index + 1);
+                          }}
+                          className="h-6 w-6 p-0"
+                          title="Add segment after this"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             handleSplitSegment(segment.id);
                           }}
                           className="h-6 w-6 p-0"
@@ -438,7 +633,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                     className={cn(
                       "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
                       "hover:shadow-sm hover:bg-green-50 hover:border-green-300",
-                      isActive && "bg-primary/10 border-primary/30",
+                      isActive && "bg-primary/10 border-primary/30 ring-2 ring-primary/20",
                       !isActive && "border-transparent"
                     )}
                     onClick={(e) => handleSegmentClick(segment, e)}

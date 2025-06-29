@@ -214,7 +214,7 @@ export const splitSegment = (
   return newSegments.map((seg, index) => ({ ...seg, id: index + 1 }));
 };
 
-// Update segment timing (for manual sync)
+// Update segment timing (for manual sync) - FIXED VERSION
 export const updateSegmentTiming = (
   segments: SubtitleSegment[], 
   segmentId: number, 
@@ -239,6 +239,14 @@ export const updateSegmentTiming = (
     };
   }
   
+  // CRITICAL FIX: Ensure first segment always starts at 0
+  if (segmentIndex === 0) {
+    newSegments[0] = {
+      ...newSegments[0],
+      startTime: 0
+    };
+  }
+  
   return newSegments;
 };
 
@@ -260,12 +268,118 @@ export const updateSegmentText = (
   return newSegments;
 };
 
-// Delete a segment
+// Delete a segment and fix timing
 export const deleteSegment = (
   segments: SubtitleSegment[], 
   segmentId: number
 ): SubtitleSegment[] => {
-  const newSegments = segments.filter(seg => seg.id !== segmentId);
+  const segmentIndex = segments.findIndex(seg => seg.id === segmentId);
+  if (segmentIndex === -1) return segments;
+  
+  const newSegments = [...segments];
+  const deletedSegment = newSegments[segmentIndex];
+  
+  // Remove the segment
+  newSegments.splice(segmentIndex, 1);
+  
+  // Fix timing: if we deleted the first segment, ensure the new first segment starts at 0
+  if (segmentIndex === 0 && newSegments.length > 0) {
+    newSegments[0] = {
+      ...newSegments[0],
+      startTime: 0
+    };
+  }
+  
+  // Reassign IDs to maintain sequence
+  return newSegments.map((seg, index) => ({ ...seg, id: index + 1 }));
+};
+
+// Add a new segment
+export const addSegment = (
+  segments: SubtitleSegment[],
+  position: 'beginning' | 'end' | number,
+  text: string = 'New segment',
+  duration: number = 5
+): SubtitleSegment[] => {
+  const newSegments = [...segments];
+  
+  if (position === 'beginning') {
+    // Add at the beginning
+    const firstSegment = newSegments[0];
+    const newStartTime = 0;
+    const newEndTime = firstSegment ? Math.min(duration, firstSegment.startTime) : duration;
+    
+    const newSegment: SubtitleSegment = {
+      id: 1,
+      startTime: newStartTime,
+      endTime: newEndTime,
+      text
+    };
+    
+    // Adjust existing segments
+    if (firstSegment) {
+      newSegments[0] = {
+        ...firstSegment,
+        startTime: newEndTime
+      };
+    }
+    
+    newSegments.unshift(newSegment);
+  } else if (position === 'end') {
+    // Add at the end
+    const lastSegment = newSegments[newSegments.length - 1];
+    const newStartTime = lastSegment ? lastSegment.endTime : 0;
+    const newEndTime = newStartTime + duration;
+    
+    const newSegment: SubtitleSegment = {
+      id: newSegments.length + 1,
+      startTime: newStartTime,
+      endTime: newEndTime,
+      text
+    };
+    
+    newSegments.push(newSegment);
+  } else if (typeof position === 'number') {
+    // Add at specific index
+    const insertIndex = Math.max(0, Math.min(position, newSegments.length));
+    const prevSegment = newSegments[insertIndex - 1];
+    const nextSegment = newSegments[insertIndex];
+    
+    let newStartTime: number;
+    let newEndTime: number;
+    
+    if (prevSegment && nextSegment) {
+      // Insert between two segments
+      newStartTime = prevSegment.endTime;
+      newEndTime = Math.min(newStartTime + duration, nextSegment.startTime);
+      
+      // Adjust next segment if needed
+      if (newEndTime >= nextSegment.startTime) {
+        newEndTime = newStartTime + Math.min(duration, (nextSegment.startTime - newStartTime) / 2);
+        newSegments[insertIndex] = {
+          ...nextSegment,
+          startTime: newEndTime
+        };
+      }
+    } else if (prevSegment) {
+      // Add after last segment
+      newStartTime = prevSegment.endTime;
+      newEndTime = newStartTime + duration;
+    } else {
+      // Add as first segment
+      newStartTime = 0;
+      newEndTime = duration;
+    }
+    
+    const newSegment: SubtitleSegment = {
+      id: insertIndex + 1,
+      startTime: newStartTime,
+      endTime: newEndTime,
+      text
+    };
+    
+    newSegments.splice(insertIndex, 0, newSegment);
+  }
   
   // Reassign IDs to maintain sequence
   return newSegments.map((seg, index) => ({ ...seg, id: index + 1 }));
