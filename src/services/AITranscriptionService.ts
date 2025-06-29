@@ -1,5 +1,6 @@
 import { getModelById } from '@/data/aiProviders';
 import { AppSettings } from '@/types/settings';
+import { textToSRT } from '@/utils/srtParser';
 
 class AITranscriptionService {
   private static getSettings(): AppSettings | null {
@@ -61,7 +62,7 @@ class AITranscriptionService {
       const formData = new FormData();
       formData.append('file', audioFile);
       formData.append('model', 'whisper-large-v3');
-      formData.append('response_format', 'srt');
+      formData.append('response_format', 'text');
       formData.append('language', 'en'); // Could be made configurable
 
       const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
@@ -102,8 +103,16 @@ class AITranscriptionService {
         throw new Error(errorMessage);
       }
 
-      const transcription = await response.text();
-      return transcription;
+      const transcriptionText = await response.text();
+      
+      // Convert plain text to SRT format
+      const audio = new Audio(URL.createObjectURL(audioFile));
+      await new Promise((resolve) => {
+        audio.addEventListener('loadedmetadata', resolve);
+      });
+      
+      const duration = audio.duration || 60; // fallback to 60 seconds
+      return textToSRT(transcriptionText, duration);
     } catch (error) {
       console.error('Groq transcription error:', error);
       throw error;
@@ -222,9 +231,7 @@ class AITranscriptionService {
           });
           
           const duration = audio.duration || 60; // fallback to 60 seconds
-          const timestamp = this.secondsToSRTTimestamp(0) + ' --> ' + this.secondsToSRTTimestamp(duration);
-          
-          transcription = `1\n${timestamp}\n${transcription.trim()}\n\n`;
+          transcription = textToSRT(transcription.trim(), duration);
         } else {
           // Generate a placeholder SRT
           const audio = new Audio(URL.createObjectURL(audioFile));
