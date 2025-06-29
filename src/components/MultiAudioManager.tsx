@@ -67,9 +67,12 @@ const MultiAudioManager: React.FC = () => {
     };
   }, []);
 
-  // Auto-hide upload section when files are loaded (but don't force it)
+  // Auto-hide upload section when files are loaded, but show it when no files
   useEffect(() => {
-    if (audioFiles.length > 0 && showUploadSection) {
+    if (audioFiles.length === 0) {
+      // Always show upload section when no files
+      setShowUploadSection(true);
+    } else if (audioFiles.length > 0 && showUploadSection) {
       // Only auto-hide on first file upload, not when manually toggled
       const timer = setTimeout(() => {
         setShowUploadSection(false);
@@ -270,7 +273,14 @@ const MultiAudioManager: React.FC = () => {
       if (fileToDelete?.url) {
         URL.revokeObjectURL(fileToDelete.url);
       }
-      return prev.filter(file => file.id !== id);
+      const newFiles = prev.filter(file => file.id !== id);
+      
+      // If this was the last file, show upload section
+      if (newFiles.length === 0) {
+        setShowUploadSection(true);
+      }
+      
+      return newFiles;
     });
     toast.success('Audio file deleted');
   }, []);
@@ -465,14 +475,8 @@ const MultiAudioManager: React.FC = () => {
         </Alert>
       )}
 
-      {/* Upload Zone - Always render but conditionally show */}
-      <div 
-        className={`transition-all duration-300 ease-in-out ${
-          showUploadSection 
-            ? 'opacity-100 max-h-[500px] transform translate-y-0' 
-            : 'opacity-0 max-h-0 transform -translate-y-4 overflow-hidden'
-        }`}
-      >
+      {/* Upload Zone - Show when no files OR when manually toggled */}
+      {(audioFiles.length === 0 || showUploadSection) && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -499,7 +503,7 @@ const MultiAudioManager: React.FC = () => {
             </Alert>
           </CardContent>
         </Card>
-      </div>
+      )}
 
       {/* Upload Progress */}
       {uploadProgress.length > 0 && (
@@ -531,7 +535,7 @@ const MultiAudioManager: React.FC = () => {
       )}
 
       {/* Audio Files */}
-      {audioFiles.length > 0 ? (
+      {audioFiles.length > 0 && (
         <div className={
           viewMode === 'grid' 
             ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
@@ -547,22 +551,6 @@ const MultiAudioManager: React.FC = () => {
             />
           ))}
         </div>
-      ) : (
-        <Card className="text-center py-12">
-          <CardContent>
-            <div className="flex flex-col items-center gap-4">
-              <div className="rounded-full bg-muted p-4">
-                <FileAudio className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <div>
-                <h3 className="text-lg font-medium">No audio files yet</h3>
-                <p className="text-muted-foreground">
-                  Use the upload area above to add your first audio file
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       )}
     </div>
   );
