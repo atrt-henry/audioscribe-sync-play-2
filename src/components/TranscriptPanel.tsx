@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -13,7 +12,8 @@ import {
   Merge,
   Split,
   Timer,
-  Play
+  Play,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -25,7 +25,8 @@ import {
   mergeSegments,
   splitSegment,
   updateSegmentTiming,
-  updateSegmentText
+  updateSegmentText,
+  deleteSegment
 } from '@/utils/srtParser';
 
 interface TranscriptPanelProps {
@@ -33,17 +34,18 @@ interface TranscriptPanelProps {
   currentTime: number;
   onSeek: (time: number) => void;
   onTranscriptUpdate: (transcript: string) => void;
+  audioFileName?: string;
 }
 
 const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   transcript,
   currentTime,
   onSeek,
-  onTranscriptUpdate
+  onTranscriptUpdate,
+  audioFileName
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [editedTranscript, setEditedTranscript] = useState(transcript);
   const [segments, setSegments] = useState<SubtitleSegment[]>([]);
   const [currentSegment, setCurrentSegment] = useState<SubtitleSegment | null>(null);
   const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
@@ -55,10 +57,11 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   const activeSegmentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Parse transcript into segments
+    // Parse transcript into segments and filter out empty ones
     try {
       const parsedSegments = parseSRT(transcript);
-      setSegments(parsedSegments);
+      const validSegments = parsedSegments.filter(seg => seg.text.trim().length > 0);
+      setSegments(validSegments);
     } catch (error) {
       console.error('Error parsing transcript:', error);
       setSegments([]);
@@ -96,27 +99,24 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   }, [currentSegment, isEditing, isSyncing]);
 
   const handleSave = () => {
-    if (isEditing) {
-      // Save raw transcript edits
-      onTranscriptUpdate(editedTranscript);
-      setIsEditing(false);
-    } else if (isSyncing) {
-      // Save segment timing changes
-      const updatedSRT = segmentsToSRT(segments);
+    if (isEditing || isSyncing) {
+      // Filter out empty segments before saving
+      const validSegments = segments.filter(seg => seg.text.trim().length > 0);
+      const updatedSRT = segmentsToSRT(validSegments);
       onTranscriptUpdate(updatedSRT);
+      setIsEditing(false);
       setIsSyncing(false);
       setSelectedSegments([]);
     }
   };
 
   const handleCancel = () => {
-    if (isEditing) {
-      setEditedTranscript(transcript);
-      setIsEditing(false);
-    } else if (isSyncing) {
+    if (isEditing || isSyncing) {
       // Reload original segments
       const parsedSegments = parseSRT(transcript);
-      setSegments(parsedSegments);
+      const validSegments = parsedSegments.filter(seg => seg.text.trim().length > 0);
+      setSegments(validSegments);
+      setIsEditing(false);
       setIsSyncing(false);
       setSelectedSegments([]);
     }
@@ -164,10 +164,23 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   };
 
   const handleTextEdit = (segmentId: number, newText: string) => {
-    const updatedSegments = updateSegmentText(segments, segmentId, newText);
-    setSegments(updatedSegments);
+    if (newText.trim().length === 0) {
+      // Delete the segment if text is empty
+      const updatedSegments = deleteSegment(segments, segmentId);
+      setSegments(updatedSegments);
+    } else {
+      // Update the segment text
+      const updatedSegments = updateSegmentText(segments, segmentId, newText);
+      setSegments(updatedSegments);
+    }
     setEditingSegmentId(null);
     setEditingText('');
+  };
+
+  const handleDeleteSegment = (segmentId: number) => {
+    const updatedSegments = deleteSegment(segments, segmentId);
+    setSegments(updatedSegments);
+    setSelectedSegments(prev => prev.filter(id => id !== segmentId));
   };
 
   const handleMergeSegments = () => {
@@ -189,11 +202,16 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   };
 
   const handleDownload = () => {
+    // Use audio file name for transcript download
+    const fileName = audioFileName 
+      ? audioFileName.replace(/\.[^/.]+$/, '') + '.srt'
+      : 'transcript.srt';
+    
     const blob = new Blob([transcript], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'transcript.srt';
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -221,11 +239,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
           <CardTitle className="text-lg flex items-center gap-2">
             <Clock className="h-5 w-5" />
             Interactive Transcript
-            {segments.length > 0 && (
-              <Badge variant="outline" className="text-xs">
-                {segments.length} segments
-              </Badge>
-            )}
           </CardTitle>
           <div className="flex items-center gap-2">
             <Button
@@ -273,7 +286,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               <div className="space-y-1">
                 <p className="flex items-center gap-2">
                   <Edit3 className="h-4 w-4" />
-                  <strong>Edit Mode:</strong> Double-click to edit text, single-click to select segments for merging.
+                  <strong>Edit Mode:</strong> Double-click to edit text, single-click to select segments for merging. Delete all text to remove segment.
                 </p>
                 {selectedSegments.length > 1 && (
                   <p className="text-xs">
@@ -327,12 +340,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                     onClick={(e) => handleSegmentClick(segment, e)}
                   >
                     <div className="flex items-start gap-3">
-                      {/* Timestamp */}
-                      <div className="text-xs font-mono min-w-[80px] flex items-center gap-1 text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {formatTime(segment.startTime)}
-                      </div>
-                      
                       {/* Text Content */}
                       <div className="flex-1">
                         {isEditingThis ? (
@@ -342,6 +349,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                               onChange={(e) => setEditingText(e.target.value)}
                               className="min-h-[60px] text-sm"
                               autoFocus
+                              placeholder="Delete all text to remove this segment"
                             />
                             <div className="flex gap-2">
                               <Button
@@ -382,6 +390,18 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                           title="Split segment"
                         >
                           <Split className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSegment(segment.id);
+                          }}
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                          title="Delete segment"
+                        >
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -494,16 +514,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                       title={`Click to jump to ${formatTime(segment.startTime)}`}
                     >
                       <div className="flex items-start gap-3">
-                        {/* Timestamp */}
-                        <div className={cn(
-                          "text-xs font-mono min-w-[80px] flex items-center gap-1 transition-colors",
-                          isActive ? "text-primary font-medium" : "text-muted-foreground",
-                          isHovered && "text-foreground"
-                        )}>
-                          <Clock className="h-3 w-3" />
-                          {formatTime(segment.startTime)}
-                        </div>
-                        
                         {/* Text Content */}
                         <div className={cn(
                           "flex-1 text-sm leading-relaxed transition-colors select-text",

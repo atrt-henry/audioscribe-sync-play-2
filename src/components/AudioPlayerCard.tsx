@@ -351,6 +351,7 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
             onTranscriptUpdate={(transcript) => 
               onTranscriptUpdate(audioFile.id, transcript)
             }
+            audioFileName={audioFile.originalName}
           />
         )}
       </CardContent>

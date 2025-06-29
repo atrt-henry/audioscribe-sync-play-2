@@ -117,9 +117,12 @@ export const textToSRT = (text: string, duration: number): string => {
 
 // Convert segments array back to SRT format
 export const segmentsToSRT = (segments: SubtitleSegment[]): string => {
+  // Filter out empty segments
+  const validSegments = segments.filter(segment => segment.text.trim().length > 0);
+  
   let srt = '';
   
-  segments.forEach((segment, index) => {
+  validSegments.forEach((segment, index) => {
     srt += `${index + 1}\n`;
     srt += `${formatSRTTimestamp(segment.startTime)} --> ${formatSRTTimestamp(segment.endTime)}\n`;
     srt += `${segment.text}\n\n`;
@@ -255,4 +258,15 @@ export const updateSegmentText = (
   };
   
   return newSegments;
+};
+
+// Delete a segment
+export const deleteSegment = (
+  segments: SubtitleSegment[], 
+  segmentId: number
+): SubtitleSegment[] => {
+  const newSegments = segments.filter(seg => seg.id !== segmentId);
+  
+  // Reassign IDs to maintain sequence
+  return newSegments.map((seg, index) => ({ ...seg, id: index + 1 }));
 };
