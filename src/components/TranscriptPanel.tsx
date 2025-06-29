@@ -61,15 +61,15 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   const [isSyncing, setIsSyncing] = useState(false);
   const [segments, setSegments] = useState<SubtitleSegment[]>([]);
   const [currentSegment, setCurrentSegment] = useState<SubtitleSegment | null>(null);
-  const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
   const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
   const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
   
-  // CRITICAL FIX: Track click state to prevent glitch
-  const [isSeekingFromClick, setIsSeekingFromClick] = useState(false);
-  const [targetSegmentId, setTargetSegmentId] = useState<number | null>(null);
-  const seekTimeoutRef = useRef<NodeJS.Timeout>();
+  // CRITICAL FIX: Remove hover state that was causing interference
+  // const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
+  
+  // CRITICAL FIX: Direct click handling without state interference
+  const [clickedSegmentId, setClickedSegmentId] = useState<number | null>(null);
   
   // Undo/Redo state
   const [history, setHistory] = useState<HistoryState[]>([]);
@@ -128,42 +128,23 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   }, [transcript]);
 
   useEffect(() => {
-    // CRITICAL FIX: Only update current segment if not seeking from click
-    if (segments.length > 0 && !isSeekingFromClick) {
+    // CRITICAL FIX: Only update current segment automatically if no manual click is in progress
+    if (segments.length > 0 && !clickedSegmentId) {
       const segment = findCurrentSegment(segments, currentTime);
       setCurrentSegment(segment);
     }
-  }, [segments, currentTime, isSeekingFromClick]);
+  }, [segments, currentTime, clickedSegmentId]);
 
-  // CRITICAL FIX: Handle seek completion
+  // CRITICAL FIX: Clear clicked segment after a short delay
   useEffect(() => {
-    if (isSeekingFromClick && targetSegmentId) {
-      // Clear any existing timeout
-      if (seekTimeoutRef.current) {
-        clearTimeout(seekTimeoutRef.current);
-      }
+    if (clickedSegmentId) {
+      const timeout = setTimeout(() => {
+        setClickedSegmentId(null);
+      }, 200); // Short delay to prevent interference
       
-      // Set a timeout to reset the seeking state
-      seekTimeoutRef.current = setTimeout(() => {
-        setIsSeekingFromClick(false);
-        
-        // Now find the correct current segment
-        const segment = findCurrentSegment(segments, currentTime);
-        setCurrentSegment(segment);
-        
-        setTargetSegmentId(null);
-      }, 100); // Small delay to ensure seek has completed
+      return () => clearTimeout(timeout);
     }
-  }, [isSeekingFromClick, targetSegmentId, segments, currentTime]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (seekTimeoutRef.current) {
-        clearTimeout(seekTimeoutRef.current);
-      }
-    };
-  }, []);
+  }, [clickedSegmentId]);
 
   useEffect(() => {
     // Auto-scroll to active segment with smooth behavior
@@ -281,7 +262,9 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     setEditingText('');
   };
 
+  // CRITICAL FIX: Completely rewritten segment click handler
   const handleSegmentClick = (segment: SubtitleSegment, event: React.MouseEvent) => {
+    // Prevent any event bubbling
     event.preventDefault();
     event.stopPropagation();
     
@@ -309,14 +292,13 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
         );
       }
     } else {
-      // CRITICAL FIX: Normal mode seeking with glitch prevention
+      // CRITICAL FIX: Normal mode seeking with precise control
       
-      // 1. Immediately set the target segment as current to prevent glitch
+      // 1. Mark this segment as clicked to prevent automatic updates
+      setClickedSegmentId(segment.id);
+      
+      // 2. Immediately set as current segment
       setCurrentSegment(segment);
-      
-      // 2. Set seeking state to prevent automatic current segment updates
-      setIsSeekingFromClick(true);
-      setTargetSegmentId(segment.id);
       
       // 3. Perform the seek
       onSeek(segment.startTime);
@@ -729,7 +711,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               </p>
             </div>
 
-            {/* Normal View Segments */}
+            {/* CRITICAL FIX: Simplified Normal View Segments */}
             <div 
               ref={transcriptRef}
               className="max-h-[400px] overflow-y-auto space-y-1 custom-scrollbar"
@@ -737,7 +719,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               {segments.length > 0 ? (
                 segments.map((segment, index) => {
                   const isActive = currentSegment?.id === segment.id;
-                  const isHovered = hoveredSegment === index;
                   
                   return (
                     <div
@@ -747,12 +728,9 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                         "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
                         "hover:shadow-sm hover:scale-[1.01] active:scale-[0.99]",
                         isActive && "bg-primary/10 border-primary/30 shadow-sm",
-                        !isActive && isHovered && "bg-muted/50 border-muted-foreground/20",
-                        !isActive && !isHovered && "border-transparent hover:border-muted-foreground/20"
+                        !isActive && "border-transparent hover:border-muted-foreground/20 hover:bg-muted/50"
                       )}
                       onClick={(e) => handleSegmentClick(segment, e)}
-                      onMouseEnter={() => setHoveredSegment(index)}
-                      onMouseLeave={() => setHoveredSegment(null)}
                       title={`Click to jump to ${formatTime(segment.startTime)}`}
                     >
                       <div className="flex items-start gap-3">
