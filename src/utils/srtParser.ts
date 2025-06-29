@@ -67,17 +67,46 @@ export const parseSRT = (srtContent: string): SubtitleSegment[] => {
   return segments;
 };
 
-// Find the current segment based on current playback time
+// CRITICAL FIX: More precise current segment detection
 export const findCurrentSegment = (
   segments: SubtitleSegment[],
   currentTime: number
 ): SubtitleSegment | null => {
+  // Add small tolerance for timing precision issues
+  const tolerance = 0.1; // 100ms tolerance
+  
   for (const segment of segments) {
-    if (currentTime >= segment.startTime && currentTime <= segment.endTime) {
+    // Check if current time is within segment bounds (with tolerance)
+    if (currentTime >= (segment.startTime - tolerance) && 
+        currentTime <= (segment.endTime + tolerance)) {
       return segment;
     }
   }
-  return null;
+  
+  // If no exact match, find the closest segment
+  let closestSegment: SubtitleSegment | null = null;
+  let closestDistance = Infinity;
+  
+  for (const segment of segments) {
+    // Calculate distance to segment
+    let distance: number;
+    
+    if (currentTime < segment.startTime) {
+      distance = segment.startTime - currentTime;
+    } else if (currentTime > segment.endTime) {
+      distance = currentTime - segment.endTime;
+    } else {
+      distance = 0; // Inside segment
+    }
+    
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestSegment = segment;
+    }
+  }
+  
+  // Only return closest segment if it's within reasonable range (5 seconds)
+  return closestDistance <= 5 ? closestSegment : null;
 };
 
 // Format seconds to MM:SS display
@@ -97,19 +126,53 @@ export const formatSRTTimestamp = (seconds: number): string => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
 };
 
-// Convert plain text to SRT format with estimated timing
+// IMPROVED: Convert plain text to SRT format with much more precise timing
 export const textToSRT = (text: string, duration: number): string => {
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
-  const timePerSentence = duration / sentences.length;
+  // Split by sentences and phrases for better timing
+  const sentences = text
+    .split(/[.!?]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+  
+  if (sentences.length === 0) {
+    return '';
+  }
+  
+  // Calculate more precise timing based on text length and speech rate
+  const averageWordsPerMinute = 150; // Average speaking rate
+  const totalWords = sentences.reduce((count, sentence) => {
+    return count + sentence.split(/\s+/).length;
+  }, 0);
+  
+  // Calculate expected duration based on word count
+  const expectedDuration = (totalWords / averageWordsPerMinute) * 60;
+  const actualDuration = Math.min(duration, Math.max(expectedDuration, duration * 0.8));
   
   let srt = '';
+  let currentTime = 0;
+  
   sentences.forEach((sentence, index) => {
-    const startTime = index * timePerSentence;
-    const endTime = Math.min((index + 1) * timePerSentence, duration);
+    const words = sentence.split(/\s+/).length;
+    const wordRatio = words / totalWords;
+    
+    // Calculate segment duration based on word count ratio
+    let segmentDuration = actualDuration * wordRatio;
+    
+    // Ensure minimum and maximum segment durations
+    segmentDuration = Math.max(1.5, Math.min(segmentDuration, 8)); // 1.5s to 8s per segment
+    
+    const startTime = currentTime;
+    const endTime = Math.min(currentTime + segmentDuration, duration);
+    
+    // Add small gap between segments to prevent overlap
+    const gap = 0.1; // 100ms gap
+    const adjustedEndTime = Math.min(endTime - gap, duration);
     
     srt += `${index + 1}\n`;
-    srt += `${formatSRTTimestamp(startTime)} --> ${formatSRTTimestamp(endTime)}\n`;
+    srt += `${formatSRTTimestamp(startTime)} --> ${formatSRTTimestamp(adjustedEndTime)}\n`;
     srt += `${sentence.trim()}\n\n`;
+    
+    currentTime = endTime;
   });
   
   return srt;

@@ -65,11 +65,8 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
   
-  // CRITICAL FIX: Remove hover state that was causing interference
-  // const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
-  
-  // CRITICAL FIX: Direct click handling without state interference
-  const [clickedSegmentId, setClickedSegmentId] = useState<number | null>(null);
+  // CRITICAL FIX: Precise click handling without interference
+  const [manualSeekInProgress, setManualSeekInProgress] = useState(false);
   
   // Undo/Redo state
   const [history, setHistory] = useState<HistoryState[]>([]);
@@ -128,23 +125,12 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   }, [transcript]);
 
   useEffect(() => {
-    // CRITICAL FIX: Only update current segment automatically if no manual click is in progress
-    if (segments.length > 0 && !clickedSegmentId) {
+    // CRITICAL FIX: Only update current segment automatically if no manual seek is in progress
+    if (segments.length > 0 && !manualSeekInProgress) {
       const segment = findCurrentSegment(segments, currentTime);
       setCurrentSegment(segment);
     }
-  }, [segments, currentTime, clickedSegmentId]);
-
-  // CRITICAL FIX: Clear clicked segment after a short delay
-  useEffect(() => {
-    if (clickedSegmentId) {
-      const timeout = setTimeout(() => {
-        setClickedSegmentId(null);
-      }, 200); // Short delay to prevent interference
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [clickedSegmentId]);
+  }, [segments, currentTime, manualSeekInProgress]);
 
   useEffect(() => {
     // Auto-scroll to active segment with smooth behavior
@@ -262,7 +248,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     setEditingText('');
   };
 
-  // CRITICAL FIX: Completely rewritten segment click handler
+  // CRITICAL FIX: Ultra-precise segment click handler
   const handleSegmentClick = (segment: SubtitleSegment, event: React.MouseEvent) => {
     // Prevent any event bubbling
     event.preventDefault();
@@ -292,18 +278,23 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
         );
       }
     } else {
-      // CRITICAL FIX: Normal mode seeking with precise control
+      // CRITICAL FIX: Normal mode seeking with ultra-precise control
       
-      // 1. Mark this segment as clicked to prevent automatic updates
-      setClickedSegmentId(segment.id);
+      // 1. Immediately set manual seek flag to prevent automatic updates
+      setManualSeekInProgress(true);
       
-      // 2. Immediately set as current segment
+      // 2. Immediately set as current segment (no delay)
       setCurrentSegment(segment);
       
       // 3. Perform the seek
       onSeek(segment.startTime);
       
-      // 4. Provide visual feedback
+      // 4. Clear the manual seek flag after a very short delay
+      setTimeout(() => {
+        setManualSeekInProgress(false);
+      }, 100); // Very short delay - just enough to prevent interference
+      
+      // 5. Provide visual feedback
       const target = event.currentTarget as HTMLElement;
       target.style.transform = 'scale(0.98)';
       setTimeout(() => {
@@ -711,7 +702,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               </p>
             </div>
 
-            {/* CRITICAL FIX: Simplified Normal View Segments */}
+            {/* CRITICAL FIX: Ultra-precise Normal View Segments */}
             <div 
               ref={transcriptRef}
               className="max-h-[400px] overflow-y-auto space-y-1 custom-scrollbar"
@@ -722,7 +713,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                   
                   return (
                     <div
-                      key={segment.id}
+                      key={`segment-${segment.id}-${segment.startTime}`} // More unique key
                       ref={isActive ? activeSegmentRef : null}
                       className={cn(
                         "group p-3 rounded-lg cursor-pointer transition-all duration-200 border",
