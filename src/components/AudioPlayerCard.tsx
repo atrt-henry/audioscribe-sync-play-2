@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { 
   Play, 
@@ -40,6 +39,7 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const [showTranscript, setShowTranscript] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isGeneratingTranscript, setIsGeneratingTranscript] = useState(false);
@@ -121,20 +121,6 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
     setCurrentTime(newTime);
   };
 
-  const handleVolumeChange = (value: number[]) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const newVolume = value[0];
-    setVolume(newVolume);
-    audio.volume = newVolume;
-    
-    if (newVolume > 0 && isMuted) {
-      setIsMuted(false);
-      audio.muted = false;
-    }
-  };
-
   const handleMuteToggle = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -142,6 +128,14 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
     const newMuted = !isMuted;
     setIsMuted(newMuted);
     audio.muted = newMuted;
+  };
+
+  const handlePlaybackRateChange = (rate: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    setPlaybackRate(rate);
+    audio.playbackRate = rate;
   };
 
   const handleGenerateTranscript = async () => {
@@ -201,12 +195,11 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
             <h3 className="font-medium truncate text-sm" title={audioFile.name}>
               {audioFile.name}
             </h3>
-            {audioFile.hasTranscript && (
-              <Badge variant="secondary" className="text-xs mt-1">
-                <FileText className="h-3 w-3 mr-1" />
-                Interactive
-              </Badge>
-            )}
+            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+              <span>{formatTime(audioFile.duration)}</span>
+              <span>•</span>
+              <span>{Math.round(audioFile.size / 1024)} KB</span>
+            </div>
           </div>
           
           <div className="flex items-center gap-1">
@@ -218,11 +211,7 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
                 className="h-6 w-6 p-0"
                 title={showTranscript ? "Hide transcript" : "Show transcript"}
               >
-                {showTranscript ? (
-                  <ChevronUp className="h-3 w-3" />
-                ) : (
-                  <ChevronDown className="h-3 w-3" />
-                )}
+                <FileText className="h-3 w-3" />
               </Button>
             )}
             <Button
@@ -294,8 +283,23 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
             </Button>
           </div>
 
-          {/* Volume Control */}
           <div className="flex items-center gap-2">
+            {/* Compact Speed Control */}
+            <div className="flex items-center border rounded-md">
+              {[0.75, 1, 1.25, 1.5].map(rate => (
+                <Button
+                  key={rate}
+                  variant={playbackRate === rate ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => handlePlaybackRateChange(rate)}
+                  className="h-6 px-2 text-xs border-0 rounded-none first:rounded-l-md last:rounded-r-md"
+                >
+                  {rate}x
+                </Button>
+              ))}
+            </div>
+
+            {/* Volume Control */}
             <Button
               variant="ghost"
               size="sm"
@@ -303,19 +307,12 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
               className="h-6 w-6 p-0"
               title={isMuted ? "Unmute" : "Mute"}
             >
-              {isMuted || volume === 0 ? (
+              {isMuted ? (
                 <VolumeX className="h-3 w-3" />
               ) : (
                 <Volume2 className="h-3 w-3" />
               )}
             </Button>
-            <Slider
-              value={[isMuted ? 0 : volume]}
-              max={1}
-              step={0.1}
-              onValueChange={handleVolumeChange}
-              className="w-16"
-            />
           </div>
         </div>
 

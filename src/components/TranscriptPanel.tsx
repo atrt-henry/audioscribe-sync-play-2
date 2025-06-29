@@ -17,8 +17,11 @@ import {
   Plus,
   Undo,
   Redo,
-  Keyboard
+  Keyboard,
+  FileText,
+  MoreVertical
 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { 
   parseSRT, 
@@ -320,8 +323,12 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     updateSegments(updatedSegments);
   };
 
-  const handleAddSegment = (position: 'beginning' | 'end' | number) => {
-    const updatedSegments = addSegment(segments, position, 'New segment', 5);
+  const handleAddSegment = (position: 'before' | 'after', segmentId: number) => {
+    const segmentIndex = segments.findIndex(s => s.id === segmentId);
+    if (segmentIndex === -1) return;
+    
+    const insertIndex = position === 'before' ? segmentIndex : segmentIndex + 1;
+    const updatedSegments = addSegment(segments, insertIndex, 'New segment', 5);
     updateSegments(updatedSegments);
   };
 
@@ -347,6 +354,9 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     setIsEditing(false);
     setSelectedSegments([]);
     setEditingSegmentId(null);
+    
+    // Pause and reset to beginning
+    onSeek(0);
   };
 
   const startEditMode = () => {
@@ -361,7 +371,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Clock className="h-5 w-5" />
+            <FileText className="h-5 w-5" />
             Interactive Transcript
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -477,26 +487,6 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                 <Merge className="h-4 w-4" />
                 Merge Selected ({selectedSegments.length})
               </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleAddSegment('beginning')}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add at Start
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleAddSegment('end')}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add at End
-              </Button>
             </div>
 
             {/* Editable Segments */}
@@ -562,18 +552,27 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
 
                       {/* Actions */}
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAddSegment(index + 1);
-                          }}
-                          className="h-6 w-6 p-0"
-                          title="Add segment after this"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleAddSegment('before', segment.id)}>
+                              Add new segment before
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleAddSegment('after', segment.id)}>
+                              Add new segment after
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        
                         <Button
                           variant="ghost"
                           size="sm"
@@ -640,20 +639,14 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                     title="Click to mark end of this segment"
                   >
                     <div className="flex items-start gap-3">
-                      {/* Timestamp */}
-                      <div className="text-xs font-mono min-w-[120px] flex flex-col gap-1 text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
-                        </div>
-                        <div className="text-xs text-green-600">
-                          Click to sync
-                        </div>
-                      </div>
-                      
                       {/* Text Content */}
                       <div className="flex-1 text-sm leading-relaxed">
                         {segment.text}
+                      </div>
+                      
+                      {/* Sync Indicator */}
+                      <div className="text-xs text-green-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        Click to sync
                       </div>
                     </div>
                   </div>
