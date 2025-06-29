@@ -274,14 +274,17 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
         );
       }
     } else {
-      // Normal mode: seek to segment
+      // Normal mode: seek to segment - FIXED to prevent glitch
+      setTimeout(() => {
+        onSeek(segment.startTime);
+      }, 0);
+      
+      // Provide visual feedback
       const target = event.currentTarget as HTMLElement;
       target.style.transform = 'scale(0.98)';
       setTimeout(() => {
         target.style.transform = '';
       }, 150);
-      
-      onSeek(segment.startTime);
     }
   };
 
@@ -513,6 +516,15 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                     onClick={(e) => handleSegmentClick(segment, e)}
                   >
                     <div className="flex items-start gap-3">
+                      {/* Timestamp - RESTORED */}
+                      <div className={cn(
+                        "text-xs font-mono min-w-[80px] flex items-center gap-1 transition-colors",
+                        isActive ? "text-primary font-medium" : "text-muted-foreground"
+                      )}>
+                        <Clock className="h-3 w-3" />
+                        {formatTime(segment.startTime)}
+                      </div>
+
                       {/* Text Content */}
                       <div className="flex-1">
                         {isEditingThis ? (
@@ -639,6 +651,15 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                     title="Click to mark end of this segment"
                   >
                     <div className="flex items-start gap-3">
+                      {/* Timestamp - RESTORED */}
+                      <div className={cn(
+                        "text-xs font-mono min-w-[80px] flex items-center gap-1 transition-colors",
+                        isActive ? "text-primary font-medium" : "text-muted-foreground"
+                      )}>
+                        <Clock className="h-3 w-3" />
+                        {formatTime(segment.startTime)}
+                      </div>
+
                       {/* Text Content */}
                       <div className="flex-1 text-sm leading-relaxed">
                         {segment.text}

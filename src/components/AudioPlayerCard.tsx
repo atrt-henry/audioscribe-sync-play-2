@@ -9,13 +9,13 @@ import {
   VolumeX, 
   Trash2, 
   FileText, 
-  ChevronDown, 
-  ChevronUp,
   Sparkles,
   Loader2,
   SkipBack,
-  SkipForward
+  SkipForward,
+  ChevronDown
 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { AudioFile } from '@/types/audio';
 import TranscriptPanel from './TranscriptPanel';
@@ -121,6 +121,19 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
     setCurrentTime(newTime);
   };
 
+  const handleVolumeChange = (newVolume: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    setVolume(newVolume);
+    audio.volume = newVolume;
+    
+    if (newVolume > 0 && isMuted) {
+      setIsMuted(false);
+      audio.muted = false;
+    }
+  };
+
   const handleMuteToggle = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -195,11 +208,6 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
             <h3 className="font-medium truncate text-sm" title={audioFile.name}>
               {audioFile.name}
             </h3>
-            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-              <span>{formatTime(audioFile.duration)}</span>
-              <span>•</span>
-              <span>{Math.round(audioFile.size / 1024)} KB</span>
-            </div>
           </div>
           
           <div className="flex items-center gap-1">
@@ -284,35 +292,74 @@ const AudioPlayerCard: React.FC<AudioPlayerCardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Compact Speed Control */}
-            <div className="flex items-center border rounded-md">
-              {[0.75, 1, 1.25, 1.5].map(rate => (
+            {/* Compact Speed Control Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
-                  key={rate}
-                  variant={playbackRate === rate ? "default" : "ghost"}
+                  variant="outline"
                   size="sm"
-                  onClick={() => handlePlaybackRateChange(rate)}
-                  className="h-6 px-2 text-xs border-0 rounded-none first:rounded-l-md last:rounded-r-md"
+                  className="h-6 px-2 text-xs"
                 >
-                  {rate}x
+                  {playbackRate}x
+                  <ChevronDown className="h-3 w-3 ml-1" />
                 </Button>
-              ))}
-            </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
+                  <DropdownMenuItem 
+                    key={rate}
+                    onClick={() => handlePlaybackRateChange(rate)}
+                    className={playbackRate === rate ? "bg-accent" : ""}
+                  >
+                    {rate}x Speed
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-            {/* Volume Control */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleMuteToggle}
-              className="h-6 w-6 p-0"
-              title={isMuted ? "Unmute" : "Mute"}
-            >
-              {isMuted ? (
-                <VolumeX className="h-3 w-3" />
-              ) : (
-                <Volume2 className="h-3 w-3" />
-              )}
-            </Button>
+            {/* Volume Control Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  title="Volume control"
+                >
+                  {isMuted || volume === 0 ? (
+                    <VolumeX className="h-3 w-3" />
+                  ) : (
+                    <Volume2 className="h-3 w-3" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-32">
+                <div className="p-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleMuteToggle}
+                      className="h-6 w-6 p-0"
+                    >
+                      {isMuted || volume === 0 ? (
+                        <VolumeX className="h-3 w-3" />
+                      ) : (
+                        <Volume2 className="h-3 w-3" />
+                      )}
+                    </Button>
+                    <span className="text-xs">{Math.round(volume * 100)}%</span>
+                  </div>
+                  <Slider
+                    value={[isMuted ? 0 : volume]}
+                    max={1}
+                    step={0.1}
+                    onValueChange={(value) => handleVolumeChange(value[0])}
+                    className="w-full"
+                  />
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
