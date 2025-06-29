@@ -60,13 +60,14 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [segments, setSegments] = useState<SubtitleSegment[]>([]);
-  const [currentSegment, setCurrentSegment] = useState<SubtitleSegment | null>(null);
+  
+  // CRITICAL FIX: Separate state for active segment to avoid conflicts
+  const [activeSegmentId, setActiveSegmentId] = useState<number | null>(null);
+  const [manuallySelectedSegment, setManuallySelectedSegment] = useState<number | null>(null);
+  
   const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
   const [editingSegmentId, setEditingSegmentId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
-  
-  // CRITICAL FIX: Precise click handling without interference
-  const [manualSeekInProgress, setManualSeekInProgress] = useState(false);
   
   // Undo/Redo state
   const [history, setHistory] = useState<HistoryState[]>([]);
@@ -124,17 +125,30 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     }
   }, [transcript]);
 
+  // CRITICAL FIX: Better active segment detection with manual override
   useEffect(() => {
-    // CRITICAL FIX: Only update current segment automatically if no manual seek is in progress
-    if (segments.length > 0 && !manualSeekInProgress) {
-      const segment = findCurrentSegment(segments, currentTime);
-      setCurrentSegment(segment);
+    if (segments.length === 0) return;
+    
+    // If user manually selected a segment, prioritize that for a short time
+    if (manuallySelectedSegment !== null) {
+      setActiveSegmentId(manuallySelectedSegment);
+      
+      // Clear manual selection after 2 seconds to allow automatic detection
+      const timeout = setTimeout(() => {
+        setManuallySelectedSegment(null);
+      }, 2000);
+      
+      return () => clearTimeout(timeout);
     }
-  }, [segments, currentTime, manualSeekInProgress]);
+    
+    // Otherwise, use automatic detection based on current time
+    const segment = findCurrentSegment(segments, currentTime);
+    setActiveSegmentId(segment?.id || null);
+  }, [segments, currentTime, manuallySelectedSegment]);
 
   useEffect(() => {
     // Auto-scroll to active segment with smooth behavior
-    if (activeSegmentRef.current && currentSegment && !isEditing && !isSyncing) {
+    if (activeSegmentRef.current && activeSegmentId && !isEditing && !isSyncing) {
       const container = transcriptRef.current;
       const element = activeSegmentRef.current;
       
@@ -152,7 +166,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
         }
       }
     }
-  }, [currentSegment, isEditing, isSyncing]);
+  }, [activeSegmentId, isEditing, isSyncing]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -185,13 +199,11 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
       } else {
         switch (event.key.toLowerCase()) {
           case 'm':
-            if (isSyncing) {
+            if (isSyncing && activeSegmentId) {
               event.preventDefault();
               // Mark current segment at current time
-              if (currentSegment) {
-                const updatedSegments = updateSegmentTiming(segments, currentSegment.id, currentTime);
-                updateSegments(updatedSegments);
-              }
+              const updatedSegments = updateSegmentTiming(segments, activeSegmentId, currentTime);
+              updateSegments(updatedSegments);
             }
             break;
           case 'escape':
@@ -204,7 +216,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, isSyncing, segments, currentSegment, currentTime, history, historyIndex]);
+  }, [isEditing, isSyncing, segments, activeSegmentId, currentTime, history, historyIndex]);
 
   const handleUndo = () => {
     if (historyIndex > 0) {
@@ -278,23 +290,16 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
         );
       }
     } else {
-      // CRITICAL FIX: Normal mode seeking with ultra-precise control
+      // CRITICAL FIX: Normal mode seeking with immediate visual feedback
       
-      // 1. Immediately set manual seek flag to prevent automatic updates
-      setManualSeekInProgress(true);
+      // 1. Immediately set as manually selected segment
+      setManuallySelectedSegment(segment.id);
+      setActiveSegmentId(segment.id);
       
-      // 2. Immediately set as current segment (no delay)
-      setCurrentSegment(segment);
-      
-      // 3. Perform the seek
+      // 2. Perform the seek
       onSeek(segment.startTime);
       
-      // 4. Clear the manual seek flag after a very short delay
-      setTimeout(() => {
-        setManualSeekInProgress(false);
-      }, 100); // Very short delay - just enough to prevent interference
-      
-      // 5. Provide visual feedback
+      // 3. Provide visual feedback
       const target = event.currentTarget as HTMLElement;
       target.style.transform = 'scale(0.98)';
       setTimeout(() => {
@@ -513,7 +518,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               className="max-h-[400px] overflow-y-auto space-y-1 custom-scrollbar"
             >
               {segments.map((segment, index) => {
-                const isActive = currentSegment?.id === segment.id;
+                const isActive = activeSegmentId === segment.id;
                 const isSelected = selectedSegments.includes(segment.id);
                 const isEditingThis = editingSegmentId === segment.id;
                 
@@ -641,7 +646,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
               className="max-h-[400px] overflow-y-auto space-y-1 custom-scrollbar"
             >
               {segments.map((segment, index) => {
-                const isActive = currentSegment?.id === segment.id;
+                const isActive = activeSegmentId === segment.id;
                 
                 return (
                   <div
@@ -709,7 +714,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
             >
               {segments.length > 0 ? (
                 segments.map((segment, index) => {
-                  const isActive = currentSegment?.id === segment.id;
+                  const isActive = activeSegmentId === segment.id;
                   
                   return (
                     <div
