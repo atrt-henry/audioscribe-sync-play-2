@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { 
   Search, 
   Edit3, 
@@ -12,7 +12,6 @@ import {
   X, 
   ChevronUp, 
   ChevronDown,
-  Play,
   Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -303,32 +302,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                         )}>
                           {highlightText(segment.text, searchTerm)}
                         </div>
-
-                        {/* Play Icon on Hover */}
-                        <div className={cn(
-                          "opacity-0 group-hover:opacity-100 transition-opacity",
-                          isActive && "opacity-100"
-                        )}>
-                          <Play className={cn(
-                            "h-4 w-4 transition-colors",
-                            isActive ? "text-primary" : "text-muted-foreground"
-                          )} />
-                        </div>
                       </div>
-
-                      {/* Progress Bar for Active Segment */}
-                      {isActive && (
-                        <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary transition-all duration-300 ease-out"
-                            style={{
-                              width: `${Math.min(100, Math.max(0, 
-                                ((currentTime - segment.startTime) / (segment.endTime - segment.startTime)) * 100
-                              ))}%`
-                            }}
-                          />
-                        </div>
-                      )}
                     </div>
                   );
                 })
