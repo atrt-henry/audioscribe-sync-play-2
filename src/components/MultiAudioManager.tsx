@@ -17,7 +17,8 @@ import {
   Trash2,
   Settings,
   Sparkles,
-  Info
+  Info,
+  Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import FileDropZone from './FileDropZone';
@@ -368,20 +369,23 @@ const MultiAudioManager: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-4 space-y-6">
+    <div className="w-full max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Audio Library</h1>
-          <p className="text-muted-foreground">
-            Manage your audio files and transcripts
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Audio Library
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Manage your audio files and transcripts with AI-powered tools
           </p>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
           {audioFiles.length > 0 && (
             <>
-              <Badge variant="outline">
+              <Badge variant="outline" className="glass-effect">
+                <FileAudio className="h-3 w-3 mr-1" />
                 {audioFiles.length} files
               </Badge>
               
@@ -392,7 +396,7 @@ const MultiAudioManager: React.FC = () => {
                   size="sm"
                   onClick={handleBulkTranscribe}
                   disabled={!aiConfigStatus.configured}
-                  className="flex items-center gap-2"
+                  className="btn-primary flex items-center gap-2"
                 >
                   <Sparkles className="h-4 w-4" />
                   Transcribe All ({filesWithoutTranscripts.length})
@@ -404,10 +408,10 @@ const MultiAudioManager: React.FC = () => {
                 variant="destructive"
                 size="sm"
                 onClick={handleDeletePlaylist}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 hover:shadow-lg transition-all duration-200"
               >
                 <Trash2 className="h-4 w-4" />
-                Delete Playlist
+                Delete All
               </Button>
             </>
           )}
@@ -418,7 +422,7 @@ const MultiAudioManager: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={toggleUploadSection}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 glass-effect hover:bg-primary/10"
             >
               {showUploadSection ? (
                 <>
@@ -428,18 +432,19 @@ const MultiAudioManager: React.FC = () => {
               ) : (
                 <>
                   <Plus className="h-4 w-4" />
-                  Add New Files
+                  Add Files
                 </>
               )}
             </Button>
           )}
           
           {audioFiles.length > 0 && (
-            <div className="flex border rounded-md">
+            <div className="flex border rounded-lg overflow-hidden glass-effect">
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('grid')}
+                className="rounded-none"
               >
                 <Grid3X3 className="h-4 w-4" />
               </Button>
@@ -447,6 +452,7 @@ const MultiAudioManager: React.FC = () => {
                 variant={viewMode === 'list' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('list')}
+                className="rounded-none"
               >
                 <List className="h-4 w-4" />
               </Button>
@@ -457,7 +463,7 @@ const MultiAudioManager: React.FC = () => {
 
       {/* AI Configuration Status */}
       {!aiConfigStatus.configured && (
-        <Alert>
+        <Alert className="glass-effect border-amber-200 dark:border-amber-800">
           <Info className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
             <span>{aiConfigStatus.message}</span>
@@ -477,22 +483,25 @@ const MultiAudioManager: React.FC = () => {
 
       {/* Upload Zone - Show when no files OR when manually toggled */}
       {(audioFiles.length === 0 || showUploadSection) && (
-        <Card>
+        <Card className="card-elevated">
           <CardContent className="pt-6">
             <FileDropZone 
               onFilesSelected={handleFileUpload}
               disabled={isUploading}
             />
 
-            <Alert className="mt-4">
+            <Alert className="mt-4 glass-effect border-blue-200 dark:border-blue-800">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Transcript files will be automatically linked to audio files with matching names (e.g., "audio.mp3" + "audio.srt").
-                {aiConfigStatus.configured && (
-                  <span className="block mt-1 text-green-600">
-                    ✓ AI transcription is ready: {aiConfigStatus.message}
-                  </span>
-                )}
+                <div className="space-y-2">
+                  <p>Transcript files will be automatically linked to audio files with matching names (e.g., "audio.mp3" + "audio.srt").</p>
+                  {aiConfigStatus.configured && (
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                      <Zap className="h-4 w-4" />
+                      <span className="font-medium">AI transcription ready: {aiConfigStatus.message}</span>
+                    </div>
+                  )}
+                </div>
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -501,16 +510,23 @@ const MultiAudioManager: React.FC = () => {
 
       {/* Upload Progress */}
       {uploadProgress.length > 0 && (
-        <Card>
+        <Card className="card-elevated">
           <CardHeader>
-            <CardTitle>Upload Progress</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Upload Progress
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {uploadProgress.map((item) => (
               <div key={item.id} className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="truncate">{item.fileName}</span>
-                  <span className="text-muted-foreground">
+                  <span className="truncate font-medium">{item.fileName}</span>
+                  <span className={`font-medium ${
+                    item.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400' : 
+                    item.status === 'error' ? 'text-red-600 dark:text-red-400' : 
+                    'text-blue-600 dark:text-blue-400'
+                  }`}>
                     {item.status === 'completed' ? 'Completed' : 
                      item.status === 'error' ? 'Error' : 
                      `${item.progress}%`}
@@ -519,7 +535,7 @@ const MultiAudioManager: React.FC = () => {
                 <Progress 
                   value={item.progress} 
                   className={`h-2 ${
-                    item.status === 'error' ? 'bg-destructive/20' : ''
+                    item.status === 'error' ? 'bg-red-100 dark:bg-red-900' : ''
                   }`}
                 />
               </div>
@@ -532,17 +548,18 @@ const MultiAudioManager: React.FC = () => {
       {audioFiles.length > 0 && (
         <div className={
           viewMode === 'grid' 
-            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
+            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
             : 'space-y-4'
         }>
           {audioFiles.map((audioFile) => (
-            <AudioPlayerCard
-              key={audioFile.id}
-              audioFile={audioFile}
-              viewMode={viewMode}
-              onDelete={handleDeleteAudio}
-              onTranscriptUpdate={handleTranscriptUpdate}
-            />
+            <div key={audioFile.id} className="card-interactive">
+              <AudioPlayerCard
+                audioFile={audioFile}
+                viewMode={viewMode}
+                onDelete={handleDeleteAudio}
+                onTranscriptUpdate={handleTranscriptUpdate}
+              />
+            </div>
           ))}
         </div>
       )}
