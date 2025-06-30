@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload, FileAudio, Sparkles } from 'lucide-react';
+import { Upload, FileAudio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FileDropZoneProps {
@@ -60,10 +60,12 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
   return (
     <div
       className={cn(
-        "upload-zone relative rounded-xl p-12 text-center transition-all duration-300 ease-out",
-        isDragOver && !disabled && "drag-over scale-[1.02]",
+        "relative border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+        isDragOver && !disabled
+          ? "border-primary bg-primary/5"
+          : "border-muted-foreground/25 hover:border-muted-foreground/50",
         disabled && "opacity-50 cursor-not-allowed",
-        !disabled && "cursor-pointer hover:scale-[1.01]"
+        !disabled && "cursor-pointer"
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -81,29 +83,16 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
         disabled={disabled}
       />
 
-      {/* Background decoration */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 rounded-xl pointer-events-none" />
-      
-      <div className="relative flex flex-col items-center gap-6">
-        <div className="relative">
-          {/* Animated background */}
-          <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-full blur-xl opacity-20 animate-pulse" />
-          
-          {/* Icon container */}
-          <div className="relative bg-gradient-to-r from-primary/10 to-accent/10 p-6 rounded-full border border-primary/20">
-            {isDragOver ? (
-              <Sparkles className="h-8 w-8 text-primary animate-bounce" />
-            ) : (
-              <FileAudio className="h-8 w-8 text-primary" />
-            )}
-          </div>
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex justify-center">
+          <FileAudio className="h-5 w-5 text-muted-foreground" />
         </div>
 
-        <div className="space-y-3">
-          <h3 className="text-xl font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+        <div className="space-y-2">
+          <p className="text-lg font-medium">
             {isDragOver ? 'Drop files here' : 'Drag & drop files here'}
-          </h3>
-          <p className="text-muted-foreground">
+          </p>
+          <p className="text-sm text-muted-foreground">
             or click anywhere to browse your files
           </p>
         </div>
@@ -112,7 +101,6 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
           variant="outline" 
           disabled={disabled}
           type="button"
-          className="glass-effect hover:bg-primary/10 focus-ring"
           onClick={(e) => {
             e.stopPropagation();
             triggerFileInput();
@@ -122,11 +110,9 @@ const FileDropZone: React.FC<FileDropZoneProps> = ({
           Choose Files
         </Button>
 
-        <div className="text-xs text-muted-foreground space-y-1 bg-muted/30 p-3 rounded-lg">
-          <p className="font-medium">Supported formats:</p>
-          <p>🎵 Audio: MP3, WAV, M4A, OGG</p>
-          <p>📝 Transcripts: SRT, VTT</p>
-          <p className="text-xs opacity-75">Maximum file size: 100MB</p>
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>Supports: MP3, WAV, M4A, OGG (audio) • SRT, VTT (transcripts)</p>
+          <p>Maximum file size: 100MB</p>
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Music, Library, Settings, Sparkles } from 'lucide-react';
+import { Music, Library, Settings } from 'lucide-react';
 
 const Index = () => {
   const [isPopout, setIsPopout] = useState(false);
@@ -31,32 +31,22 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background/98 to-muted/30">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="app-header px-6 py-4">
+      <div className="bg-white border-b px-4 py-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur opacity-20"></div>
-              <div className="relative bg-gradient-to-r from-primary to-accent p-2 rounded-lg">
-                <Music className="h-6 w-6 text-white" />
-              </div>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                AudioScribe
-              </h1>
-              <p className="text-xs text-muted-foreground">AI-Powered Audio Transcription</p>
-            </div>
+          <div className="flex items-center gap-2">
+            <Music className="h-6 w-6 text-primary" />
+            <h1 className="text-xl font-bold">AudioScribe</h1>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* Settings Button */}
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowSettings(true)}
-              className="flex items-center gap-2 glass-effect hover:bg-primary/10 focus-ring"
+              className="flex items-center gap-2"
             >
               <Settings className="h-4 w-4" />
               Settings
@@ -67,7 +57,7 @@ const Index = () => {
                 variant="outline"
                 size="sm"
                 onClick={handlePopout}
-                className="flex items-center gap-2 glass-effect hover:bg-accent/10 focus-ring"
+                className="flex items-center gap-2"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -93,13 +83,13 @@ const Index = () => {
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
         {!isPopout ? (
-          <ScrollArea className="h-[calc(100vh-89px)] custom-scrollbar">
-            <div className="p-6">
+          <ScrollArea className="h-[calc(100vh-73px)]">
+            <div className="p-4">
               <MultiAudioManager />
             </div>
           </ScrollArea>
         ) : (
-          <div className="h-full p-6">
+          <div className="h-full p-4">
             <MultiAudioManager />
           </div>
         )}
